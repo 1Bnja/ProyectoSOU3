@@ -7,6 +7,11 @@ import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.*;
+import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.paint.Color;
+import javafx.scene.shape.Rectangle;
+import javafx.scene.text.Text;
 import javafx.util.Duration;
 
 import java.net.URL;
@@ -34,6 +39,9 @@ public class HelloController implements Initializable {
     @FXML
     private TableColumn<ObservableList<String>, String> colMemoria;
 
+    @FXML
+    private GridPane gridGantt;
+
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
         // Setup ComboBox
@@ -57,6 +65,38 @@ public class HelloController implements Initializable {
         datos.add(FXCollections.observableArrayList("B", "2", "3", "256"));
         datos.add(FXCollections.observableArrayList("C", "4", "6", "512"));
         tablaProcesos.setItems(datos);
+
+        generarGanttDePrueba();
+    }
+    private void generarGanttDePrueba() {
+        gridGantt.getChildren().clear();
+        int tiempoTotal = 100;
+
+        // Fila 0: Línea de tiempo con Label en celdas fijas
+        for (int t = 0; t < tiempoTotal; t++) {
+            Label tiempoLabel = new Label("t" + t);
+            tiempoLabel.setPrefSize(30, 30);
+            tiempoLabel.setStyle("-fx-border-color: gray; -fx-alignment: center;");
+            gridGantt.add(tiempoLabel, t, 0);
+        }
+
+        // Filas 1-6: bloques
+        for (int fila = 1; fila <= 6; fila++) {
+            for (int col = 0; col < tiempoTotal; col++) {
+                Rectangle bloque = new Rectangle(30, 30);
+                bloque.setStroke(Color.GRAY);
+
+                if ((fila == 1 && col >= 0 && col < 5) ||
+                        (fila == 2 && col >= 2 && col < 5) ||
+                        (fila == 3 && col >= 5 && col < 10)) {
+                    bloque.setFill(Color.LIGHTBLUE);
+                } else {
+                    bloque.setFill(Color.TRANSPARENT);
+                }
+
+                gridGantt.add(bloque, col, fila);
+            }
+        }
     }
 
     @FXML
