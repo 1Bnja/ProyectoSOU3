@@ -1,16 +1,99 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import javafx.geometry.Insets?>
-<?import javafx.scene.control.Label?>
-<?import javafx.scene.layout.VBox?>
-
 <?import javafx.scene.control.Button?>
-<VBox alignment="CENTER" spacing="20.0" xmlns:fx="http://javafx.com/fxml"
-      fx:controller="org.example.proyectoso.HelloController">
-    <padding>
-        <Insets bottom="20.0" left="20.0" right="20.0" top="20.0"/>
-    </padding>
+<?import javafx.scene.control.ComboBox?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.control.TableColumn?>
+<?import javafx.scene.control.TableView?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.AnchorPane?>
+<?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.text.Font?>
 
-    <Label fx:id="welcomeText"/>
-    <Button text="Hello!" onAction="#onHelloButtonClick"/>
-</VBox>
+<AnchorPane prefHeight="650.0" prefWidth="1200.0" style="-fx-border-color: black;" xmlns="http://javafx.com/javafx/23.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.proyectoso.HelloController">
+   <children>
+      <!-- HEADER -->
+      <HBox prefHeight="100.0" prefWidth="1200.0" style="-fx-border-color: black;">
+         <children>
+            <Label text="Algoritmo:"><font><Font size="14.0" /></font><HBox.margin><Insets left="30.0" top="40.0" /></HBox.margin></Label>
+            <ComboBox fx:id="comboAlgoritmo" prefHeight="40.0" prefWidth="120.0" promptText="SJF"><HBox.margin><Insets left="5.0" top="30.0" /></HBox.margin></ComboBox>
+            <Label text="Quantum:"><font><Font size="14.0" /></font><HBox.margin><Insets left="10.0" top="40.0" /></HBox.margin></Label>
+            <TextField fx:id="txtQuantum" prefHeight="25.0" prefWidth="37.0"><HBox.margin><Insets left="5.0" top="40.0" /></HBox.margin></TextField>
+            <Label text="t ="><font><Font size="14.0" /></font><HBox.margin><Insets left="10.0" top="40.0" /></HBox.margin></Label>
+            <TextField fx:id="txtTime" prefHeight="25.0" prefWidth="37.0"><HBox.margin><Insets left="5.0" top="40.0" /></HBox.margin></TextField>
+            <Button fx:id="btnStart" onAction="#onStartClicked" prefHeight="40.0" prefWidth="100.0" text="START"><HBox.margin><Insets left="100.0" top="30.0" /></HBox.margin></Button>
+            <Button fx:id="btnPause" onAction="#onPauseClicked" prefHeight="40.0" prefWidth="100.0" text="PAUSE"><HBox.margin><Insets left="20.0" top="30.0" /></HBox.margin></Button>
+            <Button fx:id="btnStop" onAction="#onStopClicked" prefHeight="40.0" prefWidth="100.0" text="STOP"><HBox.margin><Insets left="20.0" top="30.0" /></HBox.margin></Button>
+            <Button fx:id="btnRetry" onAction="#onRetryClicked" prefHeight="40.0" prefWidth="100.0" text="RETRY"><HBox.margin><Insets left="20.0" top="30.0" /></HBox.margin></Button>
+            <Button fx:id="btnStats" onAction="#onStatsClicked" prefHeight="40.0" prefWidth="100.0" text="STATS"><HBox.margin><Insets left="20.0" top="30.0" /></HBox.margin></Button>
+         </children>
+      </HBox>
+
+      <!-- CONTENIDO CENTRAL: Tabla + Gantt -->
+      <HBox layoutX="14.0" layoutY="113.0" prefHeight="326.0" prefWidth="920.0" style="-fx-border-color: black;">
+         <children>
+            <!-- Tabla de procesos -->
+            <VBox>
+               <children>
+                  <TableView fx:id="tablaProcesos" prefHeight="237.0" prefWidth="255.0">
+                     <columnResizePolicy><TableView fx:constant="CONSTRAINED_RESIZE_POLICY" /></columnResizePolicy>
+                     <columns>
+                        <TableColumn fx:id="colProceso" prefWidth="50.0" text="Proceso" />
+                        <TableColumn fx:id="colLlegada" prefWidth="50.0" text="T. Llegada" />
+                        <TableColumn fx:id="colBurst" prefWidth="50.0" text="CPU Burst" />
+                        <TableColumn fx:id="colMemoria" prefWidth="50.0" text="Memory" />
+                     </columns>
+                     <VBox.margin><Insets top="10.0" /></VBox.margin>
+                  </TableView>
+                  <Button fx:id="btnAdd" onAction="#onAddClicked" text="+ Add"><VBox.margin><Insets left="100.0" top="10.0" /></VBox.margin></Button>
+                  <Button fx:id="btnRemove" onAction="#onRemoveClicked" text="- Remove"><VBox.margin><Insets left="93.0" top="10.0" /></VBox.margin></Button>
+               </children>
+            </VBox>
+
+            <!-- Gantt con Scroll -->
+            <ScrollPane fitToHeight="true" fitToWidth="false" hbarPolicy="AS_NEEDED" prefHeight="240.0" prefWidth="650.0" vbarPolicy="NEVER">
+               <content>
+                  <AnchorPane minHeight="0.0" minWidth="0.0">
+                     <children>
+                        <GridPane fx:id="gridGantt" layoutY="7.0" style="-fx-grid-lines-visible: true; -fx-border-color: gray;" />
+                     </children>
+                  </AnchorPane>
+               </content>
+               <HBox.margin><Insets bottom="78.0" left="10.0" right="10.0" top="10.0" /></HBox.margin>
+            </ScrollPane>
+         </children>
+      </HBox>
+
+      <!-- RAM + DISCO DURO -->
+      <VBox alignment="TOP_CENTER" layoutX="946.0" layoutY="113.0" prefHeight="522.0" prefWidth="240.0" spacing="40.0">
+         <children>
+            <VBox alignment="TOP_CENTER" spacing="5.0">
+               <Label style="-fx-font-weight: bold; -fx-font-size: 16;" text="RAM" />
+               <VBox fx:id="ramBox" alignment="TOP_CENTER" spacing="5.0" style="-fx-background-color: transparent;" />
+            </VBox>
+            <VBox alignment="TOP_CENTER" spacing="5.0">
+               <Label style="-fx-font-weight: bold; -fx-font-size: 16;" text="Disco Duro" />
+               <VBox fx:id="discoBox" alignment="TOP_CENTER" spacing="5.0" style="-fx-background-color: transparent;" />
+            </VBox>
+         </children>
+      </VBox>
+
+      <!-- TABLA DE COLAS DE PROCESOS -->
+      <HBox layoutX="14.0" layoutY="449.0" prefHeight="180.0" prefWidth="920.0" style="-fx-border-color: black;">
+         <children>
+            <TableView fx:id="tablaColas" prefHeight="178.0" prefWidth="921.0">
+               <columns>
+                  <TableColumn fx:id="colNuevo" prefWidth="229.0" text="Nuevo" />
+                  <TableColumn fx:id="colListo" prefWidth="216.0" text="Listo" />
+                  <TableColumn fx:id="colEspera" prefWidth="223.0" text="Espera" />
+                  <TableColumn fx:id="colTerminado" prefWidth="249.0" text="Terminado" />
+               </columns>
+            </TableView>
+         </children>
+      </HBox>
+   </children>
+</AnchorPane>
