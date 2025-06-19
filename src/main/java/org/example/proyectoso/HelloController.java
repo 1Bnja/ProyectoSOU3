@@ -1,18 +1,15 @@
 package org.example.proyectoso;
 
-import javafx.animation.KeyFrame;
-import javafx.animation.Timeline;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.*;
 import javafx.scene.layout.GridPane;
-import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
-import javafx.util.Duration;
+import org.example.proyectoso.models.Proceso;
 
 import java.net.URL;
 import java.util.ResourceBundle;
@@ -29,21 +26,33 @@ public class HelloController implements Initializable {
     private Button btnStart, btnPause, btnStop, btnRetry, btnStats, btnAdd, btnRemove;
 
     @FXML
-    private TableView<ObservableList<String>> tablaProcesos;
+    private TableView<Proceso> tablaProcesos;
     @FXML
-    private TableColumn<ObservableList<String>, String> colProceso;
+    private TableColumn<Proceso, String> colProceso;
     @FXML
-    private TableColumn<ObservableList<String>, String> colLlegada;
+    private TableColumn<Proceso, Integer> colLlegada;
     @FXML
-    private TableColumn<ObservableList<String>, String> colBurst;
+    private TableColumn<Proceso, Integer> colBurst;
     @FXML
-    private TableColumn<ObservableList<String>, String> colMemoria;
+    private TableColumn<Proceso, Integer> colMemoria;
 
     @FXML
     private GridPane gridGantt;
 
     @FXML private VBox ramBox;
     @FXML private VBox discoBox;
+
+    // Tabla de colas de procesos
+    @FXML
+    private TableView<?> tablaColas;
+    @FXML
+    private TableColumn<?, ?> colNuevo;
+    @FXML
+    private TableColumn<?, ?> colListo;
+    @FXML
+    private TableColumn<?, ?> colEspera;
+    @FXML
+    private TableColumn<?, ?> colTerminado;
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
@@ -56,18 +65,14 @@ public class HelloController implements Initializable {
             System.out.println("Algoritmo seleccionado: " + seleccionado);
         });
 
-        // Configurar columnas con índice
-        colProceso.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(data.getValue().get(0)));
-        colLlegada.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(data.getValue().get(1)));
-        colBurst.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(data.getValue().get(2)));
-        colMemoria.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(data.getValue().get(3)));
+        // Configurar columnas usando propiedades del Proceso
+        colProceso.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(data.getValue().getNombre()));
+        colLlegada.setCellValueFactory(data -> new javafx.beans.property.SimpleIntegerProperty(data.getValue().getTiempoLlegada()).asObject());
+        colBurst.setCellValueFactory(data -> new javafx.beans.property.SimpleIntegerProperty(data.getValue().getDuracion()).asObject());
+        colMemoria.setCellValueFactory(data -> new javafx.beans.property.SimpleIntegerProperty(data.getValue().getTamanoMemoria()).asObject());
 
-        // Datos de prueba
-        ObservableList<ObservableList<String>> datos = FXCollections.observableArrayList();
-        datos.add(FXCollections.observableArrayList("A", "0", "5", "128"));
-        datos.add(FXCollections.observableArrayList("B", "2", "3", "256"));
-        datos.add(FXCollections.observableArrayList("C", "4", "6", "512"));
-        tablaProcesos.setItems(datos);
+        // Lista de procesos
+        tablaProcesos.setItems(FXCollections.observableArrayList());
 
         generarGanttDePrueba();
         poblarMemorias();
@@ -148,11 +153,55 @@ public class HelloController implements Initializable {
 
     @FXML
     private void onAddClicked() {
-        System.out.println("Agregar nuevo proceso");
+        Dialog<Proceso> dialog = new Dialog<>();
+        dialog.setTitle("Nuevo Proceso");
+
+        ButtonType addButton = new ButtonType("Agregar", ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(addButton, ButtonType.CANCEL);
+
+        GridPane grid = new GridPane();
+        grid.setHgap(10);
+        grid.setVgap(10);
+
+        TextField nombreField = new TextField();
+        TextField llegadaField = new TextField();
+        TextField burstField = new TextField();
+        TextField memoriaField = new TextField();
+
+        grid.add(new Label("Nombre:"), 0, 0);
+        grid.add(nombreField, 1, 0);
+        grid.add(new Label("Llegada:"), 0, 1);
+        grid.add(llegadaField, 1, 1);
+        grid.add(new Label("Burst:"), 0, 2);
+        grid.add(burstField, 1, 2);
+        grid.add(new Label("Memoria:"), 0, 3);
+        grid.add(memoriaField, 1, 3);
+
+        dialog.getDialogPane().setContent(grid);
+
+        dialog.setResultConverter(dialogButton -> {
+            if (dialogButton == addButton) {
+                try {
+                    String nombre = nombreField.getText();
+                    int llegada = Integer.parseInt(llegadaField.getText());
+                    int burst = Integer.parseInt(burstField.getText());
+                    int memoria = Integer.parseInt(memoriaField.getText());
+                    return new Proceso(nombre, burst, memoria, llegada);
+                } catch (NumberFormatException e) {
+                    return null;
+                }
+            }
+            return null;
+        });
+
+        dialog.showAndWait().ifPresent(proceso -> tablaProcesos.getItems().add(proceso));
     }
 
     @FXML
     private void onRemoveClicked() {
-        System.out.println("Remover proceso");
+        Proceso seleccionado = tablaProcesos.getSelectionModel().getSelectedItem();
+        if (seleccionado != null) {
+            tablaProcesos.getItems().remove(seleccionado);
+        }
     }
 }
