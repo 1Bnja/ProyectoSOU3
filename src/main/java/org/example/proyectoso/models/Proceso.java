@@ -1,6 +1,8 @@
 package org.example.proyectoso.models;
 
 
+import javafx.scene.paint.Color;
+
 public class Proceso {
     // Identificación
     private static int contadorId = 1;
@@ -24,6 +26,9 @@ public class Proceso {
 
     // Para Round Robin
     private int quantumRestante;
+
+    // Color distintivo para la visualización
+    private Color color;
 
 
     public Proceso(String nombre, int duracion, int tamanoMemoria, int tiempoLlegada) {
@@ -201,6 +206,14 @@ public class Proceso {
 
     public int getQuantumRestante() {
         return quantumRestante;
+    }
+
+    public Color getColor() {
+        return color;
+    }
+
+    public void setColor(Color color) {
+        this.color = color;
     }
 
     public long getTiempoInicioEjecucion() {

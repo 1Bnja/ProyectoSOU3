@@ -10,6 +10,10 @@ import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 import org.example.proyectoso.models.Proceso;
+import javafx.scene.control.TableRow;
+import java.util.Arrays;
+import java.util.ArrayList;
+import java.util.List;
 
 import java.net.URL;
 import java.util.ResourceBundle;
@@ -42,6 +46,12 @@ public class HelloController implements Initializable {
     @FXML private VBox ramBox;
     @FXML private VBox discoBox;
 
+    // Lista observable de procesos y colores disponibles
+    private ObservableList<Proceso> procesos;
+    private final List<Color> coloresDisponibles = new ArrayList<>(Arrays.asList(
+            Color.RED, Color.BLUE, Color.GREEN, Color.ORANGE, Color.PURPLE, Color.BROWN
+    ));
+
     // Tabla de colas de procesos
     @FXML
     private TableView<?> tablaColas;
@@ -72,7 +82,28 @@ public class HelloController implements Initializable {
         colMemoria.setCellValueFactory(data -> new javafx.beans.property.SimpleIntegerProperty(data.getValue().getTamanoMemoria()).asObject());
 
         // Lista de procesos
-        tablaProcesos.setItems(FXCollections.observableArrayList());
+        procesos = FXCollections.observableArrayList();
+        tablaProcesos.setItems(procesos);
+
+        // Colorear filas según el color del proceso
+        tablaProcesos.setRowFactory(tv -> new TableRow<>() {
+            @Override
+            protected void updateItem(Proceso item, boolean empty) {
+                super.updateItem(item, empty);
+                if (item == null || empty) {
+                    setStyle("");
+                } else if (item.getColor() != null) {
+                    Color c = item.getColor();
+                    String rgb = String.format("rgb(%d,%d,%d)",
+                            (int) (c.getRed() * 255),
+                            (int) (c.getGreen() * 255),
+                            (int) (c.getBlue() * 255));
+                    setStyle("-fx-background-color: " + rgb + ";");
+                } else {
+                    setStyle("");
+                }
+            }
+        });
 
         generarGanttDePrueba();
         poblarMemorias();
@@ -153,6 +184,12 @@ public class HelloController implements Initializable {
 
     @FXML
     private void onAddClicked() {
+        if (procesos.size() >= 6) {
+            Alert alerta = new Alert(Alert.AlertType.WARNING, "Solo se pueden agregar hasta 6 procesos.");
+            alerta.showAndWait();
+            return;
+        }
+
         Dialog<Proceso> dialog = new Dialog<>();
         dialog.setTitle("Nuevo Proceso");
 
@@ -194,14 +231,23 @@ public class HelloController implements Initializable {
             return null;
         });
 
-        dialog.showAndWait().ifPresent(proceso -> tablaProcesos.getItems().add(proceso));
+        dialog.showAndWait().ifPresent(proceso -> {
+            if (proceso != null) {
+                Color color = coloresDisponibles.remove(0);
+                proceso.setColor(color);
+                procesos.add(proceso);
+            }
+        });
     }
 
     @FXML
     private void onRemoveClicked() {
         Proceso seleccionado = tablaProcesos.getSelectionModel().getSelectedItem();
         if (seleccionado != null) {
-            tablaProcesos.getItems().remove(seleccionado);
+            procesos.remove(seleccionado);
+            if (seleccionado.getColor() != null) {
+                coloresDisponibles.add(seleccionado.getColor());
+            }
         }
     }
 }
