@@ -3,15 +3,26 @@ package org.example.proyectoso;
 import org.example.proyectoso.models.*;
 import org.example.proyectoso.memoria.*;
 import org.example.proyectoso.planificacion.*;
+import org.example.proyectoso.utils.*;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public class TestMain {
     public static void main(String[] args) {
-        System.out.println("=== PRUEBA DEL ALGORITMO SJF ===\n");
+        System.out.println("=== PRUEBA DEL ALGORITMO SJF CON ESTADÍSTICAS Y SIMULACIÓN DE TIEMPO ===\n");
 
         try {
+            // Inicializar el simulador de tiempo
+            SimuladorTiempo.iniciar();
+            System.out.println("⏱️ Simulador de tiempo iniciado en: " +
+                    SimuladorTiempo.formatearTiempo(SimuladorTiempo.getTiempoActual()));
+
+            // Inicializar estadísticas
+            Estadisticas estadisticas = new Estadisticas();
+            estadisticas.iniciar();
+            System.out.println("📊 Sistema de estadísticas iniciado\n");
+
             // 1. Crear la CPU con 2 cores
             CPU cpu = new CPU(2);
             System.out.println("✅ CPU creada: " + cpu.getNombre());
@@ -25,9 +36,13 @@ public class TestMain {
 
             System.out.println("--- PROCESOS CREADOS ---");
             for (Proceso p : procesos) {
+                estadisticas.registrarNuevoProceso(); // Registrar cada proceso en estadísticas
                 System.out.println("Proceso " + p.getId() + ": " +
                         p.getNombre() + " | Duración: " + p.getDuracion() + "ms | " +
                         "Memoria: " + p.getTamanoMemoria() + "MB | Estado: " + p.getEstado());
+
+                // Simular tiempo entre creaciones
+                SimuladorTiempo.esperar(100);
             }
 
             // 4. Asignar memoria a los procesos
@@ -42,8 +57,15 @@ public class TestMain {
                     System.out.println("✅ Memoria asignada a Proceso " + proceso.getId());
                 } else {
                     memoria.moverASwapping(proceso);
+                    estadisticas.registrarSwapping(); // Registrar operación de swapping
                     System.out.println("💾 Proceso " + proceso.getId() + " movido a swapping");
                 }
+
+                // Actualizar estadísticas de memoria
+                estadisticas.actualizarUtilizacionMemoria(memoria);
+
+                // Simular tiempo entre asignaciones
+                SimuladorTiempo.esperar(200);
             }
 
             // Mostrar estado inicial de memoria
@@ -70,13 +92,38 @@ public class TestMain {
             if (!procesosListos.isEmpty()) {
                 System.out.println("\n--- INICIANDO EJECUCIÓN SJF ---");
                 System.out.println("Procesos a ejecutar: " + procesosListos.size());
+                System.out.println("Tiempo de inicio: " +
+                        SimuladorTiempo.formatearTiempo(SimuladorTiempo.getTiempoActual()));
+
+                // Acelerar la simulación para la ejecución
+                SimuladorTiempo.setFactorVelocidad(3.0);
+                System.out.println("⏱️ Velocidad de simulación aumentada (3x)");
 
                 // Ejecutar
                 sjf.ejecutarProcesos(procesosListos);
 
                 // Esperar a que termine la ejecución
                 System.out.println("\n--- ESPERANDO FINALIZACIÓN ---");
-                Thread.sleep(3000); // Dar tiempo suficiente para que terminen
+
+                // Simulamos la observación del progreso
+                for (int i = 0; i < 5; i++) {
+                    Thread.sleep(500); // Tiempo real de espera
+                    System.out.println("Progreso en tiempo: " +
+                            SimuladorTiempo.formatearTiempo(SimuladorTiempo.getTiempoActual()));
+
+                    // Registrar cambios de contexto y utilización de CPU (simulado)
+                    estadisticas.registrarCambioContexto();
+                    estadisticas.actualizarUtilizacionCPU(0.7 + (Math.random() * 0.2)); // Entre 70% y 90%
+
+                    // Simular algunos page faults aleatorios
+                    if (Math.random() > 0.6) {
+                        estadisticas.registrarPageFault();
+                        System.out.println("📉 Page fault detectado");
+                    }
+                }
+
+                // Volver a velocidad normal
+                SimuladorTiempo.setFactorVelocidad(1.0);
 
             } else {
                 System.out.println("⚠️ No hay procesos listos para ejecutar (todos en swapping)");
@@ -84,6 +131,8 @@ public class TestMain {
 
             // 7. Mostrar resultados
             System.out.println("\n--- RESULTADOS DE LA EJECUCIÓN ---");
+            System.out.println("Tiempo de finalización: " +
+                    SimuladorTiempo.formatearTiempo(SimuladorTiempo.getTiempoActual()));
 
             // Estado final de procesos
             System.out.println("\nEstado final de procesos:");
@@ -91,6 +140,13 @@ public class TestMain {
                 System.out.println("Proceso " + p.getId() + ": " + p.getEstado() +
                         " | Ejecutado: " + p.getTiempoEjecutado() + "/" + p.getDuracion() + "ms" +
                         " | Progreso: " + String.format("%.1f%%", p.getPorcentajeCompletitud()));
+
+                // Registrar procesos terminados en estadísticas
+                if (p.haTerminado()) {
+                    // Corregir los tiempos del proceso antes de registrarlo
+                    corregirTiemposProceso(p, SimuladorTiempo.getTiempoActual());
+                    estadisticas.registrarProcesoTerminado(p);
+                }
             }
 
             // Estadísticas del planificador
@@ -107,6 +163,7 @@ public class TestMain {
                     boolean liberado = memoria.liberarMemoria(proceso);
                     if (liberado) {
                         procesosLiberados++;
+                        estadisticas.actualizarUtilizacionMemoria(memoria);
                     }
                 }
             }
@@ -115,6 +172,13 @@ public class TestMain {
             // Estado final de memoria
             System.out.println("\n--- ESTADO FINAL ---");
             memoria.imprimirEstado();
+
+            // Finalizar la recolección de estadísticas
+            estadisticas.finalizar();
+
+            // Mostrar resumen de estadísticas recopiladas
+            System.out.println("\n--- ESTADÍSTICAS DE LA SIMULACIÓN ---");
+            estadisticas.mostrarResumen();
 
             // Detener el planificador
             sjf.detener();
@@ -157,5 +221,41 @@ public class TestMain {
         procesos.add(new Proceso("Proceso Medio-Corto", 400, 120, 250));
 
         return procesos;
+    }
+
+    // Función para corregir los tiempos de un proceso antes de registrarlo en estadísticas
+    private static void corregirTiemposProceso(Proceso proceso, long tiempoActual) {
+        try {
+            // Obtener campos mediante reflection
+            java.lang.reflect.Field tiempoRetornoField = Proceso.class.getDeclaredField("tiempoRetorno");
+            java.lang.reflect.Field tiempoEsperaField = Proceso.class.getDeclaredField("tiempoEspera");
+            java.lang.reflect.Field tiempoRespuestaField = Proceso.class.getDeclaredField("tiempoRespuesta");
+
+            // Hacer accesibles los campos
+            tiempoRetornoField.setAccessible(true);
+            tiempoEsperaField.setAccessible(true);
+            tiempoRespuestaField.setAccessible(true);
+
+            // Calcular tiempos correctamente
+            int tiempoRetorno = (int) (tiempoActual - proceso.getTiempoLlegada());
+            int tiempoEspera = Math.max(0, tiempoRetorno - proceso.getTiempoEjecutado());
+            int tiempoRespuesta = (int) tiempoRetornoField.get(proceso);
+
+            // Asegurar valores válidos
+            tiempoRetorno = Math.max(0, tiempoRetorno);
+            if (tiempoRespuesta < 0) {
+                tiempoRespuesta = Math.max(0, tiempoRetorno - proceso.getDuracion());
+            }
+
+            // Establecer valores corregidos
+            tiempoRetornoField.set(proceso, tiempoRetorno);
+            tiempoEsperaField.set(proceso, tiempoEspera);
+            if (tiempoRespuesta < 0) {
+                tiempoRespuestaField.set(proceso, tiempoRespuesta);
+            }
+
+        } catch (Exception e) {
+            System.err.println("Error al corregir tiempos del proceso: " + e.getMessage());
+        }
     }
 }
