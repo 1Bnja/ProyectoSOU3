@@ -317,6 +317,12 @@ public class SJF extends Planificacion {
                     .orElse(0.0);
         }
 
+        // En SJF no preemptivo, los cambios de contexto son igual al número de procesos - 1
+        // (un cambio cada vez que termina un proceso y empieza otro, excepto el primero)
+        if (!preemptivo && procesosTerminados.size() > 0) {
+            cambiosContexto = procesosTerminados.size() - 1;
+        }
+
         System.out.println("📊 Estadísticas SJF:");
         System.out.println("   - Cambios de contexto: " + cambiosContexto);
         System.out.println("   - Tiempo promedio de espera: " + tiempoPromedioEspera + "ms");

@@ -134,6 +134,27 @@ public class TestMain {
             System.out.println("Tiempo de finalización: " +
                     SimuladorTiempo.formatearTiempo(SimuladorTiempo.getTiempoActual()));
 
+            // Esperar a que todos los procesos terminen completamente
+            boolean todosProcesosTerminados = false;
+            int intentos = 0;
+            int maxIntentos = 10;
+
+            while (!todosProcesosTerminados && intentos < maxIntentos) {
+                todosProcesosTerminados = true;
+                for (Proceso p : procesos) {
+                    if (!p.haTerminado()) {
+                        todosProcesosTerminados = false;
+                        System.out.println("⏳ Esperando finalización del proceso " + p.getId() +
+                                " (" + String.format("%.1f%%", p.getPorcentajeCompletitud()) + " completado)");
+                        Thread.sleep(300);
+                        break;
+                    }
+                }
+                intentos++;
+            }
+
+            System.out.println("\n✅ Verificación de procesos terminada");
+
             // Estado final de procesos
             System.out.println("\nEstado final de procesos:");
             for (Proceso p : procesos) {
@@ -239,23 +260,25 @@ public class TestMain {
             // Calcular tiempos correctamente
             int tiempoRetorno = (int) (tiempoActual - proceso.getTiempoLlegada());
             int tiempoEspera = Math.max(0, tiempoRetorno - proceso.getTiempoEjecutado());
-            int tiempoRespuesta = (int) tiempoRetornoField.get(proceso);
+
+            // Corregir el tiempo de respuesta (en SJF no preemptivo es igual al tiempo de espera)
+            int tiempoRespuesta = tiempoEspera;
 
             // Asegurar valores válidos
             tiempoRetorno = Math.max(0, tiempoRetorno);
-            if (tiempoRespuesta < 0) {
-                tiempoRespuesta = Math.max(0, tiempoRetorno - proceso.getDuracion());
-            }
 
             // Establecer valores corregidos
             tiempoRetornoField.set(proceso, tiempoRetorno);
             tiempoEsperaField.set(proceso, tiempoEspera);
-            if (tiempoRespuesta < 0) {
-                tiempoRespuestaField.set(proceso, tiempoRespuesta);
-            }
+            tiempoRespuestaField.set(proceso, tiempoRespuesta);
+
+            System.out.println("🔄 Corrigiendo tiempos para Proceso " + proceso.getId() +
+                    " | Espera: " + tiempoEspera +
+                    " | Retorno: " + tiempoRetorno +
+                    " | Respuesta: " + tiempoRespuesta);
 
         } catch (Exception e) {
-            System.err.println("Error al corregir tiempos del proceso: " + e.getMessage());
+            System.err.println("❌ Error al corregir tiempos del proceso: " + e.getMessage());
         }
     }
 }
