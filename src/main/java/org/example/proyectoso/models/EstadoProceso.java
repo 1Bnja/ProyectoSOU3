@@ -1,4 +1,5 @@
 package org.example.proyectoso.models;
 
-public class EstadoProceso {
+public enum EstadoProceso {
+    NUEVO, LISTO, EJECUTANDO, ESPERANDO, TERMINADO
 }
