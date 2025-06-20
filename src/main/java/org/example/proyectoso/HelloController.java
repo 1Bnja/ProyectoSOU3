@@ -127,6 +127,8 @@ public class HelloController implements Initializable {
         gridGantt.getChildren().clear();
         int tiempoTotal = 100;
 
+        celdasGantt = new Rectangle[6][tiempoTotal];
+
         for (int t = 0; t < tiempoTotal; t++) {
             Label tiempoLabel = new Label("t" + t);
             tiempoLabel.setPrefSize(30, 30);
@@ -134,12 +136,13 @@ public class HelloController implements Initializable {
             gridGantt.add(tiempoLabel, t, 0);
         }
 
-        for (int fila = 1; fila <= 6; fila++) {
+        for (int fila = 0; fila < 6; fila++) {
             for (int col = 0; col < tiempoTotal; col++) {
                 Rectangle bloque = new Rectangle(30, 30);
                 bloque.setStroke(Color.GRAY);
                 bloque.setFill(Color.TRANSPARENT);
-                gridGantt.add(bloque, col, fila);
+                gridGantt.add(bloque, col, fila + 1);
+                celdasGantt[fila][col] = bloque;
             }
         }
     }
@@ -164,23 +167,16 @@ public class HelloController implements Initializable {
     }
 
     private void prepararGantt(int tiempoTotal) {
-        gridGantt.getChildren().clear();
-        celdasGantt = new Rectangle[procesos.size()][tiempoTotal];
-
-        for (int t = 0; t < tiempoTotal; t++) {
-            Label tiempoLabel = new Label("t" + t);
-            tiempoLabel.setPrefSize(30, 30);
-            tiempoLabel.setStyle("-fx-border-color: gray; -fx-alignment: center;");
-            gridGantt.add(tiempoLabel, t, 0);
+        if (celdasGantt == null) {
+            generarGanttVacio();
+            return;
         }
 
-        for (int fila = 0; fila < procesos.size(); fila++) {
-            for (int col = 0; col < tiempoTotal; col++) {
-                Rectangle bloque = new Rectangle(30, 30);
-                bloque.setStroke(Color.GRAY);
-                bloque.setFill(Color.TRANSPARENT);
-                gridGantt.add(bloque, col, fila + 1);
-                celdasGantt[fila][col] = bloque;
+        for (Rectangle[] fila : celdasGantt) {
+            for (Rectangle celda : fila) {
+                if (celda != null) {
+                    celda.setFill(Color.TRANSPARENT);
+                }
             }
         }
     }
@@ -205,21 +201,13 @@ public class HelloController implements Initializable {
 
     private void ejecutarSimulacion() {
         List<Proceso> listaProcesos = new ArrayList<>(procesos);
-        if (listaProcesos.isEmpty()) {
-            return;
-        }
-
         Map<Proceso, Integer> restantes = new HashMap<>();
         Map<Proceso, Integer> filaMapa = new HashMap<>();
-        for (int i = 0; i < listaProcesos.size(); i++) {
-            Proceso p = listaProcesos.get(i);
+        int nextFila = 0;
+        for (Proceso p : listaProcesos) {
             restantes.put(p, p.getDuracion());
-            filaMapa.put(p, i);
+            filaMapa.put(p, nextFila++);
         }
-
-        int tiempoTotal = listaProcesos.stream()
-                .mapToInt(p -> p.getTiempoLlegada() + p.getDuracion())
-                .max().orElse(0);
 
         int quantum = 1;
         try {
@@ -233,9 +221,17 @@ public class HelloController implements Initializable {
         List<Proceso> pendientes = new ArrayList<>(listaProcesos);
         List<Proceso> colaListos = new ArrayList<>();
 
-        Platform.runLater(() -> prepararGantt(tiempoTotal));
+        Platform.runLater(() -> prepararGantt(0));
 
-        while (corriendo && (!pendientes.isEmpty() || !colaListos.isEmpty())) {
+        while (corriendo && (!pendientes.isEmpty() || !colaListos.isEmpty() || procesos.size() > listaProcesos.size())) {
+            for (Proceso nuevo : procesos) {
+                if (!filaMapa.containsKey(nuevo)) {
+                    listaProcesos.add(nuevo);
+                    pendientes.add(nuevo);
+                    restantes.put(nuevo, nuevo.getDuracion());
+                    filaMapa.put(nuevo, nextFila++);
+                }
+            }
             if (pausado) {
                 esperar(100);
                 continue;
@@ -284,17 +280,17 @@ public class HelloController implements Initializable {
                 tiempoActual++;
 
                 // Permitir llegada de nuevos procesos en cada unidad de tiempo
-                int finalTiempoActual1 = tiempoActual;
-                pendientes.removeIf(p -> {
-                    if (p.getTiempoLlegada() <= finalTiempoActual1) {
-                        colaListos.add(p);
-                        return true;
-                    }
-                    return false;
-                });
+            int finalTiempoActual1 = tiempoActual;
+            pendientes.removeIf(p -> {
+                if (p.getTiempoLlegada() <= finalTiempoActual1) {
+                    colaListos.add(p);
+                    return true;
+                }
+                return false;
+            });
 
-                esperar(STEP_DELAY_MS);
-            }
+            esperar(STEP_DELAY_MS);
+        }
 
             if (restantes.get(actual) > 0) {
                 colaListos.add(actual);
@@ -346,7 +342,7 @@ public class HelloController implements Initializable {
         if (simulacionThread != null) {
             simulacionThread.interrupt();
         }
-        Platform.runLater(() -> prepararGantt(1));
+        Platform.runLater(() -> prepararGantt(0));
         System.out.println("Simulación reiniciada");
     }
 
