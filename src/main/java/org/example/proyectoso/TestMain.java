@@ -9,8 +9,20 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class TestMain {
+    /** Delay used when assigning memory in the simulation */
+    private static long STEP_DELAY_MS = 200;
     public static void main(String[] args) {
         System.out.println("=== PRUEBA DEL ALGORITMO SJF CON ESTADÍSTICAS Y SIMULACIÓN DE TIEMPO ===\n");
+
+        if (args.length > 0) {
+            try {
+                long v = Long.parseLong(args[0]);
+                if (v > 0) {
+                    STEP_DELAY_MS = v;
+                }
+            } catch (NumberFormatException ignored) {
+            }
+        }
 
         try {
             // Inicializar el simulador de tiempo
@@ -65,7 +77,7 @@ public class TestMain {
                 estadisticas.actualizarUtilizacionMemoria(memoria);
 
                 // Simular tiempo entre asignaciones
-                SimuladorTiempo.esperar(200);
+                SimuladorTiempo.esperar(STEP_DELAY_MS);
             }
 
             // Mostrar estado inicial de memoria
