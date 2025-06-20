@@ -75,6 +75,9 @@ public class HelloController implements Initializable {
 
     private Rectangle[][] celdasGantt;
 
+    /** Delay between simulation steps in milliseconds */
+    private static long STEP_DELAY_MS = 200;
+
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
         // Setup ComboBox
@@ -250,7 +253,7 @@ public class HelloController implements Initializable {
 
             if (colaListos.isEmpty()) {
                 tiempoActual++;
-                esperar(200);
+                esperar(STEP_DELAY_MS);
                 continue;
             }
 
@@ -290,7 +293,7 @@ public class HelloController implements Initializable {
                     return false;
                 });
 
-                esperar(200);
+                esperar(STEP_DELAY_MS);
             }
 
             if (restantes.get(actual) > 0) {
@@ -305,6 +308,13 @@ public class HelloController implements Initializable {
     private void onStartClicked() {
         if (corriendo) {
             return;
+        }
+        try {
+            long v = Long.parseLong(txtTime.getText());
+            if (v > 0) {
+                STEP_DELAY_MS = v;
+            }
+        } catch (Exception ignored) {
         }
         corriendo = true;
         pausado = false;
