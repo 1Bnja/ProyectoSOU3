@@ -4,6 +4,10 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
+import javafx.animation.Animation;
+import javafx.util.Duration;
 import javafx.scene.control.*;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
@@ -41,6 +45,11 @@ public class HelloController implements Initializable {
 
     @FXML private VBox ramBox;
     @FXML private VBox discoBox;
+
+    // Matriz visual del Gantt
+    private Rectangle[][] matrizGantt;
+    private Timeline timeline;
+    private int tiempoActual;
 
     // Tabla de colas de procesos
     @FXML
@@ -122,27 +131,102 @@ public class HelloController implements Initializable {
             Rectangle bloque = new Rectangle(100, 30);
             bloque.setFill(Color.LIGHTGRAY);  // Bloque Disco libre
             bloque.setStroke(Color.BLACK);
-            discoBox.getChildren().add(bloque);
+        discoBox.getChildren().add(bloque);
         }
+    }
+
+    private void ejecutarSJF() {
+        ObservableList<Proceso> procesos = tablaProcesos.getItems();
+        if (procesos.isEmpty()) {
+            return;
+        }
+
+        var ordenados = procesos.stream()
+                .sorted(java.util.Comparator.comparingInt(Proceso::getDuracion))
+                .toList();
+
+        int tiempoTotal = ordenados.stream()
+                .mapToInt(Proceso::getDuracion)
+                .sum();
+
+        gridGantt.getChildren().clear();
+        for (int t = 0; t < tiempoTotal; t++) {
+            Label lbl = new Label("t" + t);
+            lbl.setPrefSize(30, 30);
+            lbl.setStyle("-fx-border-color: gray; -fx-alignment: center;");
+            gridGantt.add(lbl, t, 0);
+        }
+
+        matrizGantt = new Rectangle[ordenados.size()][tiempoTotal];
+        for (int fila = 0; fila < ordenados.size(); fila++) {
+            for (int col = 0; col < tiempoTotal; col++) {
+                Rectangle r = new Rectangle(30, 30);
+                r.setStroke(Color.GRAY);
+                r.setFill(Color.TRANSPARENT);
+                matrizGantt[fila][col] = r;
+                gridGantt.add(r, col, fila + 1);
+            }
+        }
+
+        tiempoActual = 0;
+        final int[] indiceProceso = {0};
+        final int[] restante = {ordenados.get(0).getDuracion()};
+        Color[] colores = {Color.LIGHTBLUE, Color.LIGHTGREEN, Color.LIGHTPINK,
+                Color.LIGHTYELLOW, Color.LIGHTCORAL, Color.LIGHTSEAGREEN};
+
+        timeline = new Timeline(new KeyFrame(Duration.millis(300), e -> {
+            if (tiempoActual >= tiempoTotal) {
+                timeline.stop();
+                return;
+            }
+
+            Rectangle rect = matrizGantt[indiceProceso[0]][tiempoActual];
+            rect.setFill(colores[indiceProceso[0] % colores.length]);
+
+            restante[0]--;
+            tiempoActual++;
+
+            if (restante[0] == 0 && indiceProceso[0] < ordenados.size() - 1) {
+                indiceProceso[0]++;
+                restante[0] = ordenados.get(indiceProceso[0]).getDuracion();
+            }
+        }));
+        timeline.setCycleCount(Animation.INDEFINITE);
+        timeline.play();
     }
 
     @FXML
     private void onStartClicked() {
+        if (timeline == null || timeline.getStatus() == Animation.Status.STOPPED) {
+            ejecutarSJF();
+        } else {
+            timeline.play();
+        }
         System.out.println("Simulación iniciada");
     }
 
     @FXML
     private void onPauseClicked() {
+        if (timeline != null) {
+            timeline.pause();
+        }
         System.out.println("Simulación pausada");
     }
 
     @FXML
     private void onStopClicked() {
+        if (timeline != null) {
+            timeline.stop();
+        }
         System.out.println("Simulación detenida");
     }
 
     @FXML
     private void onRetryClicked() {
+        if (timeline != null) {
+            timeline.stop();
+        }
+        ejecutarSJF();
         System.out.println("Simulación reiniciada");
     }
 
