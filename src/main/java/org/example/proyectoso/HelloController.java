@@ -116,11 +116,11 @@ public class HelloController implements Initializable {
             }
         });
 
-        generarGanttDePrueba();
+        generarGanttVacio();
         poblarMemorias();
     }
 
-    private void generarGanttDePrueba() {
+    private void generarGanttVacio() {
         gridGantt.getChildren().clear();
         int tiempoTotal = 100;
 
@@ -135,15 +135,7 @@ public class HelloController implements Initializable {
             for (int col = 0; col < tiempoTotal; col++) {
                 Rectangle bloque = new Rectangle(30, 30);
                 bloque.setStroke(Color.GRAY);
-
-                if ((fila == 1 && col >= 0 && col < 5) ||
-                        (fila == 2 && col >= 2 && col < 5) ||
-                        (fila == 3 && col >= 5 && col < 10)) {
-                    bloque.setFill(Color.LIGHTBLUE);
-                } else {
-                    bloque.setFill(Color.TRANSPARENT);
-                }
-
+                bloque.setFill(Color.TRANSPARENT);
                 gridGantt.add(bloque, col, fila);
             }
         }
