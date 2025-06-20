@@ -4,6 +4,7 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
+import javafx.application.Platform;
 import javafx.scene.control.*;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
@@ -14,6 +15,9 @@ import javafx.scene.control.TableRow;
 import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.Map;
 
 import java.net.URL;
 import java.util.ResourceBundle;
@@ -63,6 +67,13 @@ public class HelloController implements Initializable {
     private TableColumn<?, ?> colEspera;
     @FXML
     private TableColumn<?, ?> colTerminado;
+
+    // Control de simulación
+    private Thread simulacionThread;
+    private volatile boolean corriendo = false;
+    private volatile boolean pausado = false;
+
+    private Rectangle[][] celdasGantt;
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
@@ -157,24 +168,186 @@ public class HelloController implements Initializable {
         }
     }
 
+    private void prepararGantt(int tiempoTotal) {
+        gridGantt.getChildren().clear();
+        celdasGantt = new Rectangle[procesos.size()][tiempoTotal];
+
+        for (int t = 0; t < tiempoTotal; t++) {
+            Label tiempoLabel = new Label("t" + t);
+            tiempoLabel.setPrefSize(30, 30);
+            tiempoLabel.setStyle("-fx-border-color: gray; -fx-alignment: center;");
+            gridGantt.add(tiempoLabel, t, 0);
+        }
+
+        for (int fila = 0; fila < procesos.size(); fila++) {
+            for (int col = 0; col < tiempoTotal; col++) {
+                Rectangle bloque = new Rectangle(30, 30);
+                bloque.setStroke(Color.GRAY);
+                bloque.setFill(Color.TRANSPARENT);
+                gridGantt.add(bloque, col, fila + 1);
+                celdasGantt[fila][col] = bloque;
+            }
+        }
+    }
+
+    private void pintarCelda(int fila, int columna, Color color) {
+        if (fila >= 0 && fila < celdasGantt.length &&
+                columna >= 0 && columna < celdasGantt[0].length) {
+            Rectangle r = celdasGantt[fila][columna];
+            if (r != null) {
+                r.setFill(color);
+            }
+        }
+    }
+
+    private void esperar(long ms) {
+        try {
+            Thread.sleep(ms);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    private void ejecutarSimulacion() {
+        List<Proceso> listaProcesos = new ArrayList<>(procesos);
+        if (listaProcesos.isEmpty()) {
+            return;
+        }
+
+        Map<Proceso, Integer> restantes = new HashMap<>();
+        Map<Proceso, Integer> filaMapa = new HashMap<>();
+        for (int i = 0; i < listaProcesos.size(); i++) {
+            Proceso p = listaProcesos.get(i);
+            restantes.put(p, p.getDuracion());
+            filaMapa.put(p, i);
+        }
+
+        int tiempoTotal = listaProcesos.stream()
+                .mapToInt(p -> p.getTiempoLlegada() + p.getDuracion())
+                .max().orElse(0);
+
+        int quantum = 1;
+        try {
+            quantum = Integer.parseInt(txtQuantum.getText());
+            if (quantum <= 0) quantum = 1;
+        } catch (Exception ignored) {}
+
+        String algoritmo = comboAlgoritmo.getValue();
+
+        int tiempoActual = 0;
+        List<Proceso> pendientes = new ArrayList<>(listaProcesos);
+        List<Proceso> colaListos = new ArrayList<>();
+
+        Platform.runLater(() -> prepararGantt(tiempoTotal));
+
+        while (corriendo && (!pendientes.isEmpty() || !colaListos.isEmpty())) {
+            if (pausado) {
+                esperar(100);
+                continue;
+            }
+
+            // Mover procesos que ya llegaron a la cola de listos
+            pendientes.removeIf(p -> {
+                if (p.getTiempoLlegada() <= tiempoActual) {
+                    colaListos.add(p);
+                    return true;
+                }
+                return false;
+            });
+
+            if (colaListos.isEmpty()) {
+                tiempoActual++;
+                esperar(200);
+                continue;
+            }
+
+            Proceso actual;
+            if ("Round Robin".equalsIgnoreCase(algoritmo)) {
+                actual = colaListos.remove(0);
+            } else { // SJF
+                actual = colaListos.stream()
+                        .min(Comparator.comparingInt(restantes::get))
+                        .orElse(colaListos.get(0));
+                colaListos.remove(actual);
+            }
+
+            int ejecucion = "Round Robin".equalsIgnoreCase(algoritmo) ?
+                    Math.min(quantum, restantes.get(actual)) : restantes.get(actual);
+
+            for (int i = 0; i < ejecucion && corriendo; i++) {
+                while (pausado) {
+                    esperar(100);
+                }
+
+                int fila = filaMapa.get(actual);
+                int columna = tiempoActual;
+                Color color = actual.getColor() == null ? Color.LIGHTBLUE : actual.getColor();
+                Platform.runLater(() -> pintarCelda(fila, columna, color));
+
+                restantes.put(actual, restantes.get(actual) - 1);
+                tiempoActual++;
+
+                // Permitir llegada de nuevos procesos en cada unidad de tiempo
+                pendientes.removeIf(p -> {
+                    if (p.getTiempoLlegada() <= tiempoActual) {
+                        colaListos.add(p);
+                        return true;
+                    }
+                    return false;
+                });
+
+                esperar(200);
+            }
+
+            if (restantes.get(actual) > 0) {
+                colaListos.add(actual);
+            }
+        }
+
+        corriendo = false;
+    }
+
     @FXML
     private void onStartClicked() {
+        if (corriendo) {
+            return;
+        }
+        corriendo = true;
+        pausado = false;
+        simulacionThread = new Thread(this::ejecutarSimulacion);
+        simulacionThread.setDaemon(true);
+        simulacionThread.start();
         System.out.println("Simulación iniciada");
     }
 
     @FXML
     private void onPauseClicked() {
-        System.out.println("Simulación pausada");
+        if (corriendo) {
+            pausado = !pausado;
+            System.out.println(pausedLabel());
+        }
     }
 
     @FXML
     private void onStopClicked() {
+        corriendo = false;
+        pausado = false;
         System.out.println("Simulación detenida");
     }
 
     @FXML
     private void onRetryClicked() {
+        corriendo = false;
+        pausado = false;
+        if (simulacionThread != null) {
+            simulacionThread.interrupt();
+        }
+        Platform.runLater(() -> prepararGantt(1));
         System.out.println("Simulación reiniciada");
+    }
+
+    private String pausedLabel() {
+        return pausado ? "Simulación pausada" : "Simulación reanudada";
     }
 
     @FXML
