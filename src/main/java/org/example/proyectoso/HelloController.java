@@ -247,8 +247,9 @@ public class HelloController implements Initializable {
             }
 
             // Mover procesos que ya llegaron a la cola de listos
+            int finalTiempoActual = tiempoActual;
             pendientes.removeIf(p -> {
-                if (p.getTiempoLlegada() <= tiempoActual) {
+                if (p.getTiempoLlegada() <= finalTiempoActual) {
                     colaListos.add(p);
                     return true;
                 }
@@ -288,8 +289,9 @@ public class HelloController implements Initializable {
                 tiempoActual++;
 
                 // Permitir llegada de nuevos procesos en cada unidad de tiempo
+                int finalTiempoActual1 = tiempoActual;
                 pendientes.removeIf(p -> {
-                    if (p.getTiempoLlegada() <= tiempoActual) {
+                    if (p.getTiempoLlegada() <= finalTiempoActual1) {
                         colaListos.add(p);
                         return true;
                     }
