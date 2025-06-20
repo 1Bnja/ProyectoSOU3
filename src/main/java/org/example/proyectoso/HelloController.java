@@ -261,8 +261,9 @@ public class HelloController implements Initializable {
         int tiempo = 0;
 
         while (!pendientes.isEmpty() && tiempo < TIEMPO_TOTAL) {
+            int currentTime = tiempo;
             List<Proceso> disponibles = pendientes.stream()
-                    .filter(p -> p.getTiempoLlegada() <= tiempo)
+                    .filter(p -> p.getTiempoLlegada() <= currentTime)
                     .toList();
 
             if (disponibles.isEmpty()) {
