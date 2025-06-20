@@ -1,5 +1,8 @@
 package org.example.proyectoso;
 
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
+import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
@@ -9,7 +12,14 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
+import javafx.util.Duration;
+import org.example.proyectoso.memoria.Memoria;
+import org.example.proyectoso.models.EstadoProceso;
 import org.example.proyectoso.models.Proceso;
+import org.example.proyectoso.models.CPU;
+import org.example.proyectoso.planificacion.ManejoProcesos;
+import org.example.proyectoso.planificacion.Planificacion;
+import org.example.proyectoso.planificacion.SJF;
 
 import java.net.URL;
 import java.util.ResourceBundle;
@@ -44,15 +54,48 @@ public class HelloController implements Initializable {
 
     // Tabla de colas de procesos
     @FXML
-    private TableView<?> tablaColas;
+    private TableView<EstadoRow> tablaColas;
     @FXML
-    private TableColumn<?, ?> colNuevo;
+    private TableColumn<EstadoRow, String> colNuevo;
     @FXML
-    private TableColumn<?, ?> colListo;
+    private TableColumn<EstadoRow, String> colListo;
     @FXML
-    private TableColumn<?, ?> colEspera;
+    private TableColumn<EstadoRow, String> colEspera;
     @FXML
-    private TableColumn<?, ?> colTerminado;
+    private TableColumn<EstadoRow, String> colTerminado;
+
+    // Objetos principales de la simulación
+    private CPU cpu;
+    private Memoria memoria;
+    private ManejoProcesos manejoProcesos;
+    private Planificacion planificador;
+    private Timeline uiUpdater;
+
+    /**
+     * Modelo para la tabla de colas de procesos
+     */
+    public static class EstadoRow {
+        private final SimpleStringProperty nuevo = new SimpleStringProperty("");
+        private final SimpleStringProperty listo = new SimpleStringProperty("");
+        private final SimpleStringProperty espera = new SimpleStringProperty("");
+        private final SimpleStringProperty terminado = new SimpleStringProperty("");
+
+        public String getNuevo() { return nuevo.get(); }
+        public void setNuevo(String v) { nuevo.set(v); }
+        public SimpleStringProperty nuevoProperty() { return nuevo; }
+
+        public String getListo() { return listo.get(); }
+        public void setListo(String v) { listo.set(v); }
+        public SimpleStringProperty listoProperty() { return listo; }
+
+        public String getEspera() { return espera.get(); }
+        public void setEspera(String v) { espera.set(v); }
+        public SimpleStringProperty esperaProperty() { return espera; }
+
+        public String getTerminado() { return terminado.get(); }
+        public void setTerminado(String v) { terminado.set(v); }
+        public SimpleStringProperty terminadoProperty() { return terminado; }
+    }
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
@@ -73,6 +116,13 @@ public class HelloController implements Initializable {
 
         // Lista de procesos
         tablaProcesos.setItems(FXCollections.observableArrayList());
+
+        // Configurar tabla de colas
+        colNuevo.setCellValueFactory(data -> data.getValue().nuevoProperty());
+        colListo.setCellValueFactory(data -> data.getValue().listoProperty());
+        colEspera.setCellValueFactory(data -> data.getValue().esperaProperty());
+        colTerminado.setCellValueFactory(data -> data.getValue().terminadoProperty());
+        tablaColas.setItems(FXCollections.observableArrayList(new EstadoRow()));
 
         generarGanttDePrueba();
         poblarMemorias();
@@ -122,27 +172,150 @@ public class HelloController implements Initializable {
             Rectangle bloque = new Rectangle(100, 30);
             bloque.setFill(Color.LIGHTGRAY);  // Bloque Disco libre
             bloque.setStroke(Color.BLACK);
-            discoBox.getChildren().add(bloque);
+        discoBox.getChildren().add(bloque);
+        }
+    }
+
+    // ------ Actualización de interfaz ------
+    private void startUiUpdater() {
+        if (uiUpdater != null) {
+            uiUpdater.stop();
+        }
+        uiUpdater = new Timeline(new KeyFrame(Duration.millis(500), e -> updateViews()));
+        uiUpdater.setCycleCount(Timeline.INDEFINITE);
+        uiUpdater.play();
+    }
+
+    private void stopUiUpdater() {
+        if (uiUpdater != null) {
+            uiUpdater.stop();
+            uiUpdater = null;
+        }
+    }
+
+    private void updateViews() {
+        updateTablaColas();
+        actualizarGantt();
+    }
+
+    private void updateTablaColas() {
+        if (manejoProcesos == null) return;
+
+        java.util.List<Proceso> todos = new java.util.ArrayList<>();
+        todos.addAll(manejoProcesos.obtenerTodosLosProcesos());
+        todos.addAll(manejoProcesos.getProcesosEnEjecucionList());
+        todos.addAll(manejoProcesos.getProcesosCompletadosList());
+
+        java.util.function.Function<EstadoProceso, String> joiner = estado ->
+                todos.stream()
+                        .filter(p -> p.getEstado() == estado)
+                        .map(Proceso::getNombre)
+                        .reduce((a, b) -> a + ", " + b)
+                        .orElse("");
+
+        EstadoRow row;
+        if (tablaColas.getItems().isEmpty()) {
+            row = new EstadoRow();
+            tablaColas.getItems().add(row);
+        } else {
+            row = tablaColas.getItems().get(0);
+        }
+
+        row.setNuevo(joiner.apply(EstadoProceso.NUEVO));
+        row.setListo(joiner.apply(EstadoProceso.LISTO));
+        row.setEspera(joiner.apply(EstadoProceso.ESPERANDO));
+        row.setTerminado(joiner.apply(EstadoProceso.TERMINADO));
+    }
+
+    private void actualizarGantt() {
+        if (manejoProcesos == null) return;
+
+        int tiempoTotal = 100;
+        gridGantt.getChildren().clear();
+
+        for (int t = 0; t < tiempoTotal; t++) {
+            Label tiempoLabel = new Label("t" + t);
+            tiempoLabel.setPrefSize(30, 30);
+            tiempoLabel.setStyle("-fx-border-color: gray; -fx-alignment: center;");
+            gridGantt.add(tiempoLabel, t, 0);
+        }
+
+        java.util.List<Proceso> procesos = tablaProcesos.getItems();
+        int fila = 1;
+        for (Proceso p : procesos) {
+            int ejecutado = p.getTiempoEjecutado() / 10;
+            for (int col = 0; col < tiempoTotal; col++) {
+                Rectangle bloque = new Rectangle(30, 30);
+                bloque.setStroke(Color.GRAY);
+                bloque.setFill(col < ejecutado ? Color.LIGHTBLUE : Color.TRANSPARENT);
+                gridGantt.add(bloque, col, fila);
+            }
+            fila++;
         }
     }
 
     @FXML
     private void onStartClicked() {
+        if (cpu == null) {
+            cpu = new CPU(2);
+        }
+        if (memoria == null) {
+            memoria = new Memoria(1024);
+        }
+        if (manejoProcesos == null) {
+            manejoProcesos = new ManejoProcesos();
+        }
+
+        manejoProcesos.reiniciar();
+        manejoProcesos.agregarProcesos(new java.util.ArrayList<>(tablaProcesos.getItems()));
+
+        String algoritmo = comboAlgoritmo.getValue();
+        planificador = new SJF(); // Único implementado actualmente
+        planificador.setCpu(cpu);
+        manejoProcesos.setPlanificador(planificador);
+
+        manejoProcesos.iniciarEjecucion();
+        startUiUpdater();
+
         System.out.println("Simulación iniciada");
     }
 
     @FXML
     private void onPauseClicked() {
+        if (manejoProcesos != null) {
+            manejoProcesos.pausarEjecucion();
+        }
+        if (planificador != null) {
+            planificador.pausar();
+        }
         System.out.println("Simulación pausada");
     }
 
     @FXML
     private void onStopClicked() {
+        if (manejoProcesos != null) {
+            manejoProcesos.detenerEjecucion();
+        }
+        if (planificador != null) {
+            planificador.detener();
+        }
+        stopUiUpdater();
         System.out.println("Simulación detenida");
     }
 
     @FXML
     private void onRetryClicked() {
+        onStopClicked();
+        if (manejoProcesos != null) {
+            manejoProcesos.reiniciar();
+        }
+        if (cpu != null) {
+            cpu.reiniciar();
+        }
+        if (memoria != null) {
+            memoria.reiniciar();
+        }
+        onStartClicked();
         System.out.println("Simulación reiniciada");
     }
 
