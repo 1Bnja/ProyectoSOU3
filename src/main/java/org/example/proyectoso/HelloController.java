@@ -1,7 +1,4 @@
-/**
- * Actualiza la visualización de memoria RAM y Swapping (Disco)
- */package org.example.proyectoso;
-
+package org.example.proyectoso;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
@@ -24,10 +21,12 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
-
 import java.net.URL;
 import java.util.ResourceBundle;
+import javafx.scene.control.cell.PropertyValueFactory;
+import java.util.stream.Collectors;
+import java.util.Timer;
+import java.util.TimerTask;
 
 public class HelloController implements Initializable {
 
@@ -68,16 +67,11 @@ public class HelloController implements Initializable {
     ));
 
     // Tabla de colas de procesos
-    @FXML
-    private TableView<?> tablaColas;
-    @FXML
-    private TableColumn<?, ?> colNuevo;
-    @FXML
-    private TableColumn<?, ?> colListo;
-    @FXML
-    private TableColumn<?, ?> colEspera;
-    @FXML
-    private TableColumn<?, ?> colTerminado;
+    @FXML private TableView<FilaEstadoProcesos> tablaColas;
+    @FXML private TableColumn<FilaEstadoProcesos, String> colNuevo;
+    @FXML private TableColumn<FilaEstadoProcesos, String> colListo;
+    @FXML private TableColumn<FilaEstadoProcesos, String> colEspera;
+    @FXML private TableColumn<FilaEstadoProcesos, String> colTerminado;
 
     // Sistema de procesamiento paralelo
     private CPU cpu;
@@ -99,6 +93,12 @@ public class HelloController implements Initializable {
 
     /** Delay between simulation steps in milliseconds */
     private static long STEP_DELAY_MS = 200;
+
+    private ObservableList<FilaEstadoProcesos> datosTablaEstados;
+    private List<Proceso> procesosNuevo = new ArrayList<>();
+    private List<Proceso> procesosListo = new ArrayList<>();
+    private List<Proceso> procesosEspera = new ArrayList<>();
+    private List<Proceso> procesosTerminado = new ArrayList<>();
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
@@ -155,6 +155,9 @@ public class HelloController implements Initializable {
 
         generarGanttVacio();
         poblarMemorias();
+        poblarMemorias();
+        inicializarTablaColas(); // AGREGAR ESTA LÍNEA
+
     }
 
     /**
@@ -237,8 +240,6 @@ public class HelloController implements Initializable {
                 System.out.println("⚙️ SJF configurado (sin quantum)");
                 break;
             case "Round Robin":
-                planificador = new RoundRobin(); // Necesitarás crear esta clase
-                cpu.setAlgoritmo(CPU.TipoAlgoritmo.ROUND_ROBIN);
                 try {
                     int quantum = Integer.parseInt(txtQuantum.getText());
                     cpu.setQuantumRoundRobin(quantum);
@@ -537,17 +538,20 @@ public class HelloController implements Initializable {
         // Cola de procesos por estado
         List<Proceso> procesosPendientes = new ArrayList<>(listaProcesos);
         List<Proceso> procesosListos = new ArrayList<>();
-        Map<Integer, Proceso> procesosEnCores = new HashMap<>(); // core -> proceso
+        Map<Integer, Proceso> procesosEnCores = new HashMap<>();
         Map<Proceso, Integer> tiempoRestanteProceso = new HashMap<>();
 
-        // Inicializar tiempos restantes
+        // Inicializar todos los procesos como NUEVO
         for (Proceso p : listaProcesos) {
+            actualizarEstadoProceso(p, EstadoProceso.NUEVO);
             tiempoRestanteProceso.put(p, p.getDuracion());
         }
 
+        // Actualizar tabla inicial
+        actualizarTablaColas();
+
         Platform.runLater(this::prepararGantt);
 
-        // Thread principal de simulación
         Thread simulacionThread = new Thread(() -> {
             try {
                 tiempoActual = 0;
@@ -563,18 +567,16 @@ public class HelloController implements Initializable {
                     // 1. Verificar llegadas de procesos
                     procesosPendientes.removeIf(proceso -> {
                         if (proceso.getTiempoLlegada() <= tiempoActual) {
-                            // Intentar asignar memoria al proceso
                             if (memoria.asignarMemoria(proceso)) {
                                 procesosListos.add(proceso);
-                                proceso.setEstado(EstadoProceso.LISTO);
+                                actualizarEstadoProceso(proceso, EstadoProceso.LISTO);
                                 System.out.println("⏰ t=" + tiempoActual + ": Proceso " + proceso.getId() + " llegó y obtuvo memoria");
                             } else {
-                                // No hay memoria, enviar a swapping
                                 memoria.moverASwapping(proceso);
+                                actualizarEstadoProceso(proceso, EstadoProceso.ESPERANDO);
                                 System.out.println("⏰ t=" + tiempoActual + ": Proceso " + proceso.getId() + " llegó pero fue a SWAP");
                             }
 
-                            // Actualizar visualización de memoria
                             actualizarVisualizacionMemoria();
                             return true;
                         }
@@ -583,7 +585,6 @@ public class HelloController implements Initializable {
 
                     // 2. Asignar procesos a cores libres usando SJF
                     if (!procesosListos.isEmpty()) {
-                        // Ordenar por SJF (menor duración primero)
                         procesosListos.sort((p1, p2) -> Integer.compare(
                                 tiempoRestanteProceso.get(p1),
                                 tiempoRestanteProceso.get(p2)
@@ -593,7 +594,7 @@ public class HelloController implements Initializable {
                             if (!procesosEnCores.containsKey(coreId)) {
                                 Proceso proceso = procesosListos.remove(0);
                                 procesosEnCores.put(coreId, proceso);
-                                proceso.setEstado(EstadoProceso.EJECUTANDO);
+                                actualizarEstadoProceso(proceso, EstadoProceso.EJECUTANDO);
                                 System.out.println("🔧 t=" + tiempoActual + ": Core-" + coreId + " ejecuta Proceso " + proceso.getId());
                             }
                         }
@@ -619,7 +620,7 @@ public class HelloController implements Initializable {
 
                         // Verificar si terminó
                         if (tiempoRestante <= 0) {
-                            proceso.setEstado(EstadoProceso.TERMINADO);
+                            actualizarEstadoProceso(proceso, EstadoProceso.TERMINADO);
                             coresALiberar.add(coreId);
 
                             // Liberar memoria del proceso terminado
@@ -627,7 +628,6 @@ public class HelloController implements Initializable {
 
                             System.out.println("✅ t=" + tiempoActual + ": Proceso " + proceso.getId() + " terminado en Core-" + coreId);
 
-                            // Actualizar visualización de memoria
                             actualizarVisualizacionMemoria();
                         }
                     }
@@ -637,7 +637,10 @@ public class HelloController implements Initializable {
                         procesosEnCores.remove(coreId);
                     }
 
-                    // 5. Avanzar tiempo y esperar
+                    // 5. Actualizar tabla de colas cada ciclo
+                    actualizarTablaColas();
+
+                    // 6. Avanzar tiempo y esperar
                     tiempoActual++;
                     Thread.sleep(STEP_DELAY_MS);
                 }
@@ -647,6 +650,7 @@ public class HelloController implements Initializable {
             } finally {
                 Platform.runLater(() -> {
                     corriendo = false;
+                    actualizarTablaColas(); // Actualización final
                     System.out.println("🏁 Simulación terminada en t=" + tiempoActual);
                 });
             }
@@ -663,6 +667,15 @@ public class HelloController implements Initializable {
 
     @FXML
     private void onStartClicked() {
+        if (cpu != null) {
+            System.out.println(cpu.getEstadisticas());
+        }
+        if (manejoProcesos != null) {
+            System.out.println(manejoProcesos.getEstadisticas());
+        }
+        if (memoria != null) {
+            memoria.imprimirEstado();
+        }
         if (corriendo) {
             return;
         }
@@ -826,23 +839,176 @@ public class HelloController implements Initializable {
 
         Platform.runLater(() -> {
             prepararGantt();
-            // Reiniciar memoria y actualizar visualización
+            limpiarTablaColas(); // LÍNEA AGREGADA
+
             if (memoria != null) {
                 memoria.reiniciar();
                 actualizarVisualizacionMemoria();
             }
 
-            // Recrear procesos predefinidos si la lista está vacía
             if (procesos.isEmpty()) {
-                // Restaurar colores disponibles
                 coloresDisponibles.clear();
                 coloresDisponibles.addAll(Arrays.asList(
                         Color.RED, Color.BLUE, Color.GREEN, Color.ORANGE, Color.PURPLE
                 ));
                 crearProcesosPredefinidos();
             }
+
+            // Actualizar tabla después de recrear procesos
+            actualizarTablaColas(); // LÍNEA AGREGADA
         });
 
         System.out.println("🔄 Simulación reiniciada");
     }
+
+    private void inicializarTablaColas() {
+        // Inicializar datos de la tabla
+        datosTablaEstados = FXCollections.observableArrayList();
+
+        // Configurar las columnas de la tabla
+        colNuevo.setCellValueFactory(new PropertyValueFactory<>("nuevo"));
+        colListo.setCellValueFactory(new PropertyValueFactory<>("listo"));
+        colEspera.setCellValueFactory(new PropertyValueFactory<>("espera"));
+        colTerminado.setCellValueFactory(new PropertyValueFactory<>("terminado"));
+
+        // Asignar los datos a la tabla
+        tablaColas.setItems(datosTablaEstados);
+
+        // Crear primera fila vacía
+        actualizarTablaColas();
+
+        System.out.println("📋 Tabla de colas inicializada");
+    }
+    private void actualizarTablaColas() {
+        Platform.runLater(() -> {
+            // Limpiar listas actuales
+            procesosNuevo.clear();
+            procesosListo.clear();
+            procesosEspera.clear();
+            procesosTerminado.clear();
+
+            // Clasificar procesos por estado
+            for (Proceso proceso : procesos) {
+                switch (proceso.getEstado()) {
+                    case NUEVO:
+                        procesosNuevo.add(proceso);
+                        break;
+                    case LISTO:
+                        procesosListo.add(proceso);
+                        break;
+                    case ESPERANDO:
+                        procesosEspera.add(proceso);
+                        break;
+                    case TERMINADO:
+                        procesosTerminado.add(proceso);
+                        break;
+                    case EJECUTANDO:
+                        // Los procesos ejecutándose se consideran "Listo" para efectos de visualización
+                        procesosListo.add(proceso);
+                        break;
+                }
+            }
+
+            // Limpiar tabla actual
+            datosTablaEstados.clear();
+
+            // Determinar el número máximo de filas necesarias
+            int maxFilas = Math.max(Math.max(procesosNuevo.size(), procesosListo.size()),
+                    Math.max(procesosEspera.size(), procesosTerminado.size()));
+
+            // Si no hay procesos, mostrar al menos una fila vacía
+            if (maxFilas == 0) {
+                maxFilas = 1;
+            }
+
+            // Crear filas para la tabla usando FilaEstadoProcesos
+            for (int i = 0; i < maxFilas; i++) {
+                String nuevo = i < procesosNuevo.size() ?
+                        formatearProceso(procesosNuevo.get(i)) : "";
+                String listo = i < procesosListo.size() ?
+                        formatearProceso(procesosListo.get(i)) : "";
+                String espera = i < procesosEspera.size() ?
+                        formatearProceso(procesosEspera.get(i)) : "";
+                String terminado = i < procesosTerminado.size() ?
+                        formatearProceso(procesosTerminado.get(i)) : "";
+
+                datosTablaEstados.add(new FilaEstadoProcesos(nuevo, listo, espera, terminado));
+            }
+        });
+    }
+
+    private String formatearProceso(Proceso proceso) {
+        if (proceso == null) {
+            return "";
+        }
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("P").append(proceso.getId());
+
+        // Agregar información adicional según el estado
+        switch (proceso.getEstado()) {
+            case NUEVO:
+                sb.append(" (").append(proceso.getTamanoMemoria()).append("MB)");
+                break;
+            case LISTO:
+                sb.append(" (").append(proceso.getTiempoRestante()).append("ms)");
+                break;
+            case EJECUTANDO:
+                sb.append(" [EXEC] (").append(proceso.getTiempoRestante()).append("ms)");
+                break;
+            case ESPERANDO:
+                sb.append(" (I/O)");
+                break;
+            case TERMINADO:
+                sb.append(" ✓");
+                break;
+        }
+
+        return sb.toString();
+    }
+
+    /**
+     * Actualiza el estado de un proceso específico y refresca la tabla
+     */
+    private void actualizarEstadoProceso(Proceso proceso, EstadoProceso nuevoEstado) {
+        if (proceso != null && proceso.getEstado() != nuevoEstado) {
+            EstadoProceso estadoAnterior = proceso.getEstado();
+            proceso.setEstado(nuevoEstado);
+
+            System.out.println("🔄 Proceso " + proceso.getId() +
+                    " cambió de " + estadoAnterior + " a " + nuevoEstado);
+
+            // Actualizar tabla inmediatamente
+            actualizarTablaColas();
+        }
+    }
+    private void limpiarTablaColas() {
+        Platform.runLater(() -> {
+            datosTablaEstados.clear();
+            procesosNuevo.clear();
+            procesosListo.clear();
+            procesosEspera.clear();
+            procesosTerminado.clear();
+
+            // Agregar fila vacía
+            datosTablaEstados.add(new FilaEstadoProcesos("", "", "", ""));
+        });
+    }
+    public String getEstadisticasEstados() {
+        StringBuilder stats = new StringBuilder();
+        stats.append("=== ESTADÍSTICAS DE ESTADOS ===\n");
+        stats.append("Procesos Nuevos: ").append(procesosNuevo.size()).append("\n");
+        stats.append("Procesos Listos: ").append(procesosListo.size()).append("\n");
+        stats.append("Procesos en Espera: ").append(procesosEspera.size()).append("\n");
+        stats.append("Procesos Terminados: ").append(procesosTerminado.size()).append("\n");
+        stats.append("Total de Procesos: ").append(procesos.size()).append("\n");
+
+        if (!procesos.isEmpty()) {
+            double porcentajeTerminados = (double) procesosTerminado.size() / procesos.size() * 100;
+            stats.append("Progreso: ").append(String.format("%.1f%%", porcentajeTerminados)).append("\n");
+        }
+
+        return stats.toString();
+    }
+
 }

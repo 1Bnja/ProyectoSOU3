@@ -1,10 +1,5 @@
 package org.example.proyectoso.utils;
 
-/**
- * Clase que permite simular el paso del tiempo en la ejecución de procesos.
- * Proporciona métodos para controlar la velocidad de simulación y obtener
- * el tiempo actual de simulación.
- */
 public class SimuladorTiempo {
     // Factor de escala para la simulación (ms reales = 1 unidad de tiempo simulado)
     private static double factorVelocidad = 1.0;

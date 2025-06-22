@@ -92,6 +92,9 @@
       </VBox>
 
       <!-- TABLA DE COLAS DE PROCESOS -->
+      <!-- CAMBIO EN FXML: Reemplazar la sección de la tabla de colas con esto: -->
+
+      <!-- TABLA DE COLAS DE PROCESOS -->
       <HBox layoutX="14.0" layoutY="449.0" prefHeight="180.0" prefWidth="920.0" style="-fx-border-color: black;">
          <children>
             <TableView fx:id="tablaColas" prefHeight="178.0" prefWidth="921.0">
@@ -101,6 +104,9 @@
                   <TableColumn fx:id="colEspera" prefWidth="223.0" text="Espera" />
                   <TableColumn fx:id="colTerminado" prefWidth="249.0" text="Terminado" />
                </columns>
+               <columnResizePolicy>
+                  <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />
+               </columnResizePolicy>
             </TableView>
          </children>
       </HBox>
