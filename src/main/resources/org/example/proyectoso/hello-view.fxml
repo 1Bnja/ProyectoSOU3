@@ -68,16 +68,25 @@
          </children>
       </HBox>
 
-      <!-- RAM + DISCO DURO -->
-      <VBox alignment="TOP_CENTER" layoutX="946.0" layoutY="113.0" prefHeight="522.0" prefWidth="240.0" spacing="40.0">
+      <!-- RAM + DISCO DURO (Modificado para ser recuadros únicos) -->
+      <VBox alignment="TOP_CENTER" layoutX="946.0" layoutY="113.0" prefHeight="522.0" prefWidth="240.0" spacing="20.0">
          <children>
+            <!-- RAM como recuadro único -->
             <VBox alignment="TOP_CENTER" spacing="5.0">
                <Label style="-fx-font-weight: bold; -fx-font-size: 16;" text="RAM" />
-               <VBox fx:id="ramBox" alignment="TOP_CENTER" spacing="5.0" style="-fx-background-color: transparent;" />
+               <AnchorPane fx:id="ramContainer" prefHeight="200.0" prefWidth="220.0"
+                           style="-fx-background-color: #f0f0f0; -fx-border-color: #333333; -fx-border-width: 2px; -fx-border-radius: 5px;">
+                  <!-- Aquí puedes agregar elementos dinámicamente desde el código Java -->
+               </AnchorPane>
             </VBox>
+
+            <!-- Disco Duro como recuadro único -->
             <VBox alignment="TOP_CENTER" spacing="5.0">
                <Label style="-fx-font-weight: bold; -fx-font-size: 16;" text="Disco Duro" />
-               <VBox fx:id="discoBox" alignment="TOP_CENTER" spacing="5.0" style="-fx-background-color: transparent;" />
+               <AnchorPane fx:id="discoContainer" prefHeight="280.0" prefWidth="220.0"
+                           style="-fx-background-color: #e8e8e8; -fx-border-color: #333333; -fx-border-width: 2px; -fx-border-radius: 5px;">
+                  <!-- Aquí puedes agregar elementos dinámicamente desde el código Java -->
+               </AnchorPane>
             </VBox>
          </children>
       </VBox>
