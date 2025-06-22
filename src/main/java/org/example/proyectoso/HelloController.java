@@ -179,10 +179,10 @@ public class HelloController implements Initializable {
         int[] tiemposLlegada = {1, 2, 6, 10, 15};
 
         // CPU bursts fijos (entre 10 y 90)
-        int[] cpuBursts = {45, 67, 23, 81, 34};
+        int[] cpuBursts = {250, 180, 320, 150, 200};
 
         // Tamaños de memoria fijos que suman exactamente 2048MB
-        int[] tamañosMemoria = {412, 523, 367, 448, 298}; // Total: 2048MB
+        int[] tamañosMemoria = {200, 200, 200, 500, 500}; // Total: 2048MB
 
         // Crear los procesos
         for (int i = 0; i < 5; i++) {
@@ -259,7 +259,7 @@ public class HelloController implements Initializable {
 
     private void generarGanttVacio() {
         gridGantt.getChildren().clear();
-        int tiempoTotal = 200; // Tiempo máximo para mostrar
+        int tiempoTotal = 1000; // Tiempo máximo para mostrar
 
         // CORREGIDO: Crear matriz para 6 cores
         celdasGantt = new Rectangle[NUMERO_CORES][tiempoTotal];
@@ -527,13 +527,41 @@ public class HelloController implements Initializable {
             }
         });
     }
+    /**
+     * Método helper para obtener el valor del quantum desde el TextField
+     * @return valor del quantum, o 100 por defecto si hay error
+     */
+    private int obtenerQuantumValue() {
+        try {
+            String textoQuantum = txtQuantum.getText();
+            if (textoQuantum == null || textoQuantum.trim().isEmpty()) {
+                return 100; // Default si está vacío
+            }
+            int valor = Integer.parseInt(textoQuantum.trim());
+            return valor > 0 ? valor : 100; // Asegurar que sea positivo
+        } catch (NumberFormatException e) {
+            System.out.println("⚠️ Error parseando quantum, usando valor por defecto: 100");
+            return 100; // Default si hay error de formato
+        }
+    }
 
     /**
-     * Nueva simulación paralela - simulación por unidades de tiempo CPU Burst
-     * CORREGIDO: Ahora maneja correctamente 6 cores y gestión completa de memoria/swapping
+     * Simulación paralela que soporta tanto SJF como Round Robin
+     * CORREGIDO: Variable quantum ahora es final
      */
     private void ejecutarSimulacionParalela() {
         List<Proceso> listaProcesos = new ArrayList<>(procesos);
+        String algoritmoSeleccionado = comboAlgoritmo.getValue();
+
+        // CORREGIDO: Inicializar quantum directamente
+        final int quantum = "Round Robin".equals(algoritmoSeleccionado) ?
+                obtenerQuantumValue() : 0;
+
+        if ("Round Robin".equals(algoritmoSeleccionado)) {
+            System.out.println("🔄 Round Robin iniciado con quantum=" + quantum);
+        } else {
+            System.out.println("🎯 SJF iniciado");
+        }
 
         // Asignar filas de visualización a procesos
         filaMapa.clear();
@@ -550,6 +578,9 @@ public class HelloController implements Initializable {
         Map<Integer, Proceso> procesosEnCores = new HashMap<>(); // core -> proceso
         Map<Proceso, Integer> tiempoRestanteProceso = new HashMap<>();
 
+        // NUEVO: Map para tracking de quantum (solo para Round Robin)
+        Map<Proceso, Integer> quantumRestanteProceso = new HashMap<>();
+
         // Inicializar tiempos restantes
         for (Proceso p : listaProcesos) {
             tiempoRestanteProceso.put(p, p.getDuracion());
@@ -562,7 +593,8 @@ public class HelloController implements Initializable {
             try {
                 tiempoActual = 0;
 
-                while (corriendo && (!procesosPendientes.isEmpty() || !procesosListos.isEmpty() || !procesosEnCores.isEmpty())) {
+                while (corriendo && (!procesosPendientes.isEmpty() || !procesosListos.isEmpty() ||
+                        !procesosEnCores.isEmpty() || !memoria.getSwapping().estaVacio())) {
 
                     while (pausado && corriendo) {
                         Thread.sleep(100);
@@ -570,51 +602,62 @@ public class HelloController implements Initializable {
 
                     if (!corriendo) break;
 
-                    System.out.println("📊 t=" + tiempoActual + " - Pendientes: " + procesosPendientes.size() +
-                            ", Listos: " + procesosListos.size() +
-                            ", En ejecución: " + procesosEnCores.size() +
-                            ", En swap: " + memoria.getSwapping().getCantidadProcesos());
+                    // Estadísticas cada 50 unidades para no saturar
+                    if (tiempoActual % 50 == 0) {
+                        System.out.println("📊 t=" + tiempoActual + " - Pendientes: " + procesosPendientes.size() +
+                                ", Listos: " + procesosListos.size() +
+                                ", En ejecución: " + procesosEnCores.size() +
+                                ", En swap: " + memoria.getSwapping().getCantidadProcesos());
+                    }
 
                     // 1. Verificar llegadas de procesos
                     procesosPendientes.removeIf(proceso -> {
                         if (proceso.getTiempoLlegada() <= tiempoActual) {
-                            // Intentar asignar memoria al proceso
                             if (memoria.asignarMemoria(proceso)) {
                                 procesosListos.add(proceso);
                                 proceso.setEstado(EstadoProceso.LISTO);
                                 System.out.println("⏰ t=" + tiempoActual + ": Proceso " + proceso.getId() + " llegó y obtuvo memoria");
                             } else {
-                                // No hay memoria, enviar a swapping
                                 memoria.moverASwapping(proceso);
                                 proceso.setEstado(EstadoProceso.ESPERANDO);
                                 System.out.println("⏰ t=" + tiempoActual + ": Proceso " + proceso.getId() + " llegó pero fue a SWAP");
                             }
-
-                            // Actualizar visualización de memoria
                             actualizarVisualizacionMemoria();
                             return true;
                         }
                         return false;
                     });
 
-                    // 2. Intentar mover procesos de SWAP a RAM si hay espacio disponible
+                    // 2. Intentar mover procesos de SWAP a RAM
                     List<Proceso> procesosMovidosDeSwap = memoria.getSwapping().procesarCola(memoria);
-
-                    // Agregar los procesos que salieron del swap a la lista de listos
                     for (Proceso proceso : procesosMovidosDeSwap) {
                         procesosListos.add(proceso);
                         System.out.println("🔄 t=" + tiempoActual + ": Proceso " + proceso.getId() + " movido de SWAP a RAM");
                     }
-
                     if (!procesosMovidosDeSwap.isEmpty()) {
                         actualizarVisualizacionMemoria();
                     }
 
-                    // 3. Ejecutar procesos en cores por 1 unidad de tiempo
+                    // 3. EJECUTAR PROCESOS EN CORES (MODIFICADO PARA SOPORTAR ROUND ROBIN)
                     List<Integer> coresALiberar = new ArrayList<>();
                     for (Map.Entry<Integer, Proceso> entry : procesosEnCores.entrySet()) {
                         int coreId = entry.getKey();
                         Proceso proceso = entry.getValue();
+
+                        // Obtener tiempos actuales
+                        int tiempoRestante = tiempoRestanteProceso.get(proceso);
+                        Integer quantumRestante = quantumRestanteProceso.get(proceso);
+
+                        // PRINT CADA 20 UNIDADES para debugging
+                        if (tiempoActual % 20 == 0) {
+                            if ("Round Robin".equals(algoritmoSeleccionado)) {
+                                System.out.printf("🔧 t=%d: Core-%d ejecuta Proceso %d (CPU restante: %d, quantum restante: %d)%n",
+                                        tiempoActual, coreId, proceso.getId(), tiempoRestante, quantumRestante != null ? quantumRestante : 0);
+                            } else {
+                                System.out.printf("🔧 t=%d: Core-%d ejecuta Proceso %d (tiempo restante: %d)%n",
+                                        tiempoActual, coreId, proceso.getId(), tiempoRestante);
+                            }
+                        }
 
                         // Visualizar en Gantt
                         final int finalTiempo = tiempoActual;
@@ -624,37 +667,57 @@ public class HelloController implements Initializable {
                             pintarCeldaCore(finalCore, finalTiempo, color);
                         });
 
-                        // Reducir tiempo restante
-                        int tiempoRestante = tiempoRestanteProceso.get(proceso) - 1;
+                        // Ejecutar por 1 unidad de tiempo
+                        tiempoRestante--;
                         tiempoRestanteProceso.put(proceso, tiempoRestante);
 
-                        // Verificar si terminó
+                        // ROUND ROBIN: Decrementar quantum
+                        if ("Round Robin".equals(algoritmoSeleccionado) && quantumRestante != null) {
+                            quantumRestante--;
+                            quantumRestanteProceso.put(proceso, quantumRestante);
+                        }
+
+                        // Verificar condiciones de terminación/pausa
                         if (tiempoRestante <= 0) {
+                            // Proceso terminado
                             proceso.setEstado(EstadoProceso.TERMINADO);
                             coresALiberar.add(coreId);
-
-                            // Liberar memoria del proceso terminado
                             memoria.liberarMemoria(proceso);
-
                             System.out.println("✅ t=" + tiempoActual + ": Proceso " + proceso.getId() + " TERMINADO en Core-" + coreId);
-
-                            // Actualizar visualización de memoria
                             actualizarVisualizacionMemoria();
+                        }
+                        // ROUND ROBIN: Verificar si se agotó el quantum (SIN terminar el proceso)
+                        else if ("Round Robin".equals(algoritmoSeleccionado) && quantumRestante != null && quantumRestante <= 0) {
+                            // Quantum agotado - hacer cambio de contexto
+                            proceso.setEstado(EstadoProceso.LISTO);
+                            procesosListos.add(proceso);
+                            coresALiberar.add(coreId);
+
+                            // PRINT CLAVE para verificar Round Robin
+                            System.out.println("🔄 t=" + tiempoActual + ": Proceso " + proceso.getId() +
+                                    " PAUSADO por quantum en Core-" + coreId +
+                                    " (CPU restante: " + tiempoRestante + ")");
                         }
                     }
 
-                    // 4. Liberar cores de procesos terminados
+                    // 4. Liberar cores
                     for (Integer coreId : coresALiberar) {
                         procesosEnCores.remove(coreId);
                     }
 
-                    // 5. Asignar procesos listos a cores libres (DESPUÉS de liberar cores y procesar swapping)
+                    // 5. ASIGNAR PROCESOS A CORES LIBRES
                     if (!procesosListos.isEmpty()) {
-                        // Ordenar por SJF (menor tiempo restante primero)
-                        procesosListos.sort((p1, p2) -> Integer.compare(
-                                tiempoRestanteProceso.get(p1),
-                                tiempoRestanteProceso.get(p2)
-                        ));
+                        // ALGORITMO DE ORDENAMIENTO SEGÚN TIPO SELECCIONADO
+                        if ("Round Robin".equals(algoritmoSeleccionado)) {
+                            // Round Robin: FCFS (no reordenar, usar orden de llegada a la cola)
+                            // No hacer nada - mantener orden FIFO
+                        } else {
+                            // SJF: Ordenar por tiempo restante
+                            procesosListos.sort((p1, p2) -> Integer.compare(
+                                    tiempoRestanteProceso.get(p1),
+                                    tiempoRestanteProceso.get(p2)
+                            ));
+                        }
 
                         // Asignar a cores disponibles
                         for (int coreId = 0; coreId < NUMERO_CORES && !procesosListos.isEmpty(); coreId++) {
@@ -662,13 +725,36 @@ public class HelloController implements Initializable {
                                 Proceso proceso = procesosListos.remove(0);
                                 procesosEnCores.put(coreId, proceso);
                                 proceso.setEstado(EstadoProceso.EJECUTANDO);
-                                System.out.println("🔧 t=" + tiempoActual + ": Core-" + coreId + " ejecuta Proceso " + proceso.getId() +
-                                        " (tiempo restante: " + tiempoRestanteProceso.get(proceso) + ")");
+
+                                // ROUND ROBIN: Reiniciar quantum al asignar
+                                if ("Round Robin".equals(algoritmoSeleccionado)) {
+                                    quantumRestanteProceso.put(proceso, quantum);
+                                    System.out.println("🔧 t=" + tiempoActual + ": Core-" + coreId +
+                                            " ASIGNADO a Proceso " + proceso.getId() +
+                                            " (CPU restante: " + tiempoRestanteProceso.get(proceso) +
+                                            ", quantum: " + quantum + ")");
+                                } else {
+                                    System.out.println("🔧 t=" + tiempoActual + ": Core-" + coreId + " ejecuta Proceso " + proceso.getId() +
+                                            " (tiempo restante: " + tiempoRestanteProceso.get(proceso) + ")");
+                                }
                             }
                         }
                     }
 
-                    // 6. Avanzar tiempo y esperar
+                    // 6. ESTADO DE QUANTUM CADA 100 UNIDADES (solo Round Robin)
+                    if ("Round Robin".equals(algoritmoSeleccionado) && tiempoActual % 100 == 0) {
+                        System.out.println("\n=== ESTADO QUANTUM t=" + tiempoActual + " ===");
+                        for (Map.Entry<Integer, Proceso> entry : procesosEnCores.entrySet()) {
+                            int coreId = entry.getKey();
+                            Proceso p = entry.getValue();
+                            Integer qRestante = quantumRestanteProceso.get(p);
+                            System.out.printf("Core-%d: Proceso %d (quantum restante: %d)%n",
+                                    coreId, p.getId(), qRestante != null ? qRestante : 0);
+                        }
+                        System.out.println("================================\n");
+                    }
+
+                    // 7. Avanzar tiempo
                     tiempoActual++;
                     Thread.sleep(STEP_DELAY_MS);
                 }
