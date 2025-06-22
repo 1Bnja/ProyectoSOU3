@@ -12,6 +12,7 @@ import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 import org.example.proyectoso.models.*;
 import org.example.proyectoso.planificacion.*;
+import org.example.proyectoso.memoria.*;
 import javafx.scene.control.TableRow;
 import java.util.Arrays;
 import java.util.ArrayList;
@@ -76,6 +77,9 @@ public class HelloController implements Initializable {
     private ManejoProcesos manejoProcesos;
     private Planificacion planificador;
 
+    // Sistema de memoria
+    private Memoria memoria;
+
     // Control de simulación
     private ScheduledExecutorService scheduledExecutor;
     private volatile boolean corriendo = false;
@@ -133,13 +137,151 @@ public class HelloController implements Initializable {
         // Inicializar sistema de procesamiento
         inicializarSistemaProcesamiento();
 
+        // Crear procesos predefinidos
+        crearProcesosPredefinidos();
+
         generarGanttVacio();
         poblarMemorias();
+    }
+
+    /**
+     * Crea los 5 procesos predefinidos que ocupan exactamente 2048MB de RAM
+     */
+    private void crearProcesosPredefinidos() {
+        // Nombres predefinidos
+        String[] nombres = {
+                "tralalero tralala",
+                "tung tung sahur",
+                "bombarido crocodilo",
+                "capuccion assasino",
+                "br br patatim"
+        };
+
+        // Tiempos de llegada predefinidos
+        int[] tiemposLlegada = {1, 2, 6, 10, 15};
+
+        // Generar CPU bursts aleatorios (entre 10 y 90)
+        java.util.Random random = new java.util.Random();
+        int[] cpuBursts = new int[5];
+        for (int i = 0; i < 5; i++) {
+            cpuBursts[i] = random.nextInt(81) + 10; // Entre 10 y 90
+        }
+
+        // Generar tamaños de memoria que sumen exactamente 2048MB
+        int[] tamañosMemoria = generarTamañosMemoria();
+
+        // Crear los procesos
+        for (int i = 0; i < 5; i++) {
+            Proceso proceso = new Proceso(
+                    nombres[i],
+                    cpuBursts[i],
+                    tamañosMemoria[i],
+                    tiemposLlegada[i]
+            );
+
+            // Asignar color
+            if (!coloresDisponibles.isEmpty()) {
+                Color color = coloresDisponibles.remove(0);
+                proceso.setColor(color);
+            }
+
+            procesos.add(proceso);
+        }
+
+        System.out.println("✨ 5 procesos predefinidos creados:");
+        for (int i = 0; i < procesos.size(); i++) {
+            Proceso p = procesos.get(i);
+            System.out.printf("   %d. %s - Llegada: t%d, Burst: %d, RAM: %dMB%n",
+                    i+1, p.getNombre(), p.getTiempoLlegada(), p.getDuracion(), p.getTamanoMemoria());
+        }
+        System.out.printf("   Total RAM: %dMB%n",
+                procesos.stream().mapToInt(Proceso::getTamanoMemoria).sum());
+    }
+
+    /**
+     * Genera 5 tamaños de memoria aleatorios que sumen exactamente 2048MB
+     */
+    private int[] generarTamañosMemoria() {
+        java.util.Random random = new java.util.Random();
+        int[] tamaños = new int[5];
+        int memoriaRestante = 2048;
+
+        // Generar los primeros 4 tamaños aleatoriamente
+        for (int i = 0; i < 4; i++) {
+            // Calcular rango para este tamaño
+            int minimo = 50; // Mínimo 50MB por proceso
+            int maximoRestante = memoriaRestante - (50 * (4 - i)); // Dejar al menos 50MB para cada proceso restante
+            int maximo = Math.min(800, maximoRestante); // Máximo 800MB por proceso
+
+            // Asegurar que el rango sea válido
+            if (maximo < minimo) {
+                maximo = minimo;
+            }
+
+            tamaños[i] = random.nextInt(maximo - minimo + 1) + minimo;
+            memoriaRestante -= tamaños[i];
+        }
+
+        // El último proceso obtiene toda la memoria restante
+        tamaños[4] = memoriaRestante;
+
+        // Verificar que ningún proceso exceda 1000MB
+        for (int i = 0; i < 5; i++) {
+            if (tamaños[i] > 1000) {
+                // Redistribuir si algún proceso es muy grande
+                return redistribuirMemoria();
+            }
+        }
+
+        return tamaños;
+    }
+
+    /**
+     * Redistribuye la memoria de manera más equilibrada
+     */
+    private int[] redistribuirMemoria() {
+        java.util.Random random = new java.util.Random();
+        int[] tamaños = {400, 350, 450, 300, 548}; // Distribución base
+
+        // Agregar variación aleatoria manteniendo el total
+        for (int i = 0; i < 4; i++) {
+            int variacion = random.nextInt(201) - 100; // Entre -100 y +100
+            tamaños[i] += variacion;
+            tamaños[4] -= variacion; // Compensar en el último
+
+            // Asegurar mínimos y máximos
+            if (tamaños[i] < 50) {
+                tamaños[4] -= (50 - tamaños[i]);
+                tamaños[i] = 50;
+            }
+            if (tamaños[i] > 900) {
+                tamaños[4] += (tamaños[i] - 900);
+                tamaños[i] = 900;
+            }
+        }
+
+        // Ajustar el último para que sume exactamente 2048
+        int suma = 0;
+        for (int i = 0; i < 4; i++) {
+            suma += tamaños[i];
+        }
+        tamaños[4] = 2048 - suma;
+
+        // Verificar que el último sea válido
+        if (tamaños[4] < 50) {
+            tamaños[4] = 50;
+            tamaños[0] = 2048 - tamaños[1] - tamaños[2] - tamaños[3] - tamaños[4];
+        }
+
+        return tamaños;
     }
 
     private void inicializarSistemaProcesamiento() {
         // Crear CPU con 6 cores
         cpu = new CPU(6);
+
+        // Crear memoria de 2GB (2048 MB)
+        memoria = new Memoria(2048);
 
         // Crear manejador de procesos
         manejoProcesos = new ManejoProcesos();
@@ -209,33 +351,159 @@ public class HelloController implements Initializable {
     private void poblarMemorias() {
         ramContainer.getChildren().clear();
         discoContainer.getChildren().clear();
+
+        // Inicializar visualización de memoria
+        actualizarVisualizacionMemoria();
+
         System.out.println("Contenedores de memoria inicializados");
     }
 
-    // Método auxiliar para agregar elementos a la RAM dinámicamente
-    public void agregarProcesoRAM(Proceso proceso, double x, double y, double width, double height) {
-        Rectangle rect = new Rectangle(width, height);
-        rect.setFill(proceso.getColor() != null ? proceso.getColor() : Color.LIGHTBLUE);
-        rect.setStroke(Color.BLACK);
-        rect.setX(x);
-        rect.setY(y);
-        ramContainer.getChildren().add(rect);
+    /**
+     * Actualiza la visualización de memoria RAM y Swapping (Disco)
+     */
+    private void actualizarVisualizacionMemoria() {
+        Platform.runLater(() -> {
+            actualizarRAM();
+            actualizarSwapping();
+        });
     }
 
-    // Método auxiliar para agregar elementos al Disco dinámicamente
-    public void agregarProcesoDisco(Proceso proceso, double x, double y, double width, double height) {
-        Rectangle rect = new Rectangle(width, height);
-        rect.setFill(proceso.getColor() != null ? proceso.getColor() : Color.LIGHTGRAY);
-        rect.setStroke(Color.BLACK);
-        rect.setX(x);
-        rect.setY(y);
-        discoContainer.getChildren().add(rect);
-    }
-
-    // Método para limpiar la memoria
-    public void limpiarMemoria() {
+    /**
+     * Actualiza la visualización de la RAM
+     */
+    private void actualizarRAM() {
         ramContainer.getChildren().clear();
+
+        if (memoria == null) return;
+
+        // Obtener bloques de memoria
+        List<org.example.proyectoso.memoria.BloqueMemoria> bloques = memoria.getBloques();
+
+        double containerHeight = ramContainer.getPrefHeight();
+        double containerWidth = ramContainer.getPrefWidth();
+        int memoriaTotal = memoria.getTamañoTotal();
+
+        double yOffset = 0;
+
+        for (org.example.proyectoso.memoria.BloqueMemoria bloque : bloques) {
+            // Calcular altura proporcional al tamaño del bloque
+            double alturaBloque = (double) bloque.getTamaño() / memoriaTotal * containerHeight;
+
+            // Crear rectángulo para el bloque
+            Rectangle rect = new Rectangle(containerWidth - 10, alturaBloque);
+            rect.setX(5);
+            rect.setY(yOffset);
+            rect.setStroke(Color.BLACK);
+            rect.setStrokeWidth(1);
+
+            if (bloque.isOcupado()) {
+                // Bloque ocupado - usar color del proceso
+                Color colorProceso = bloque.getProceso().getColor();
+                rect.setFill(colorProceso != null ? colorProceso : Color.LIGHTBLUE);
+
+                // Agregar etiqueta con ID del proceso
+                Label etiqueta = new Label("P" + bloque.getProceso().getId());
+                etiqueta.setLayoutX(10);
+                etiqueta.setLayoutY(yOffset + alturaBloque/2 - 8);
+                etiqueta.setStyle("-fx-font-size: 10px; -fx-font-weight: bold;");
+                ramContainer.getChildren().add(etiqueta);
+            } else {
+                // Bloque libre
+                rect.setFill(Color.LIGHTGRAY);
+
+                // Etiqueta "LIBRE" si el bloque es lo suficientemente grande
+                if (alturaBloque > 20) {
+                    Label etiqueta = new Label("LIBRE");
+                    etiqueta.setLayoutX(10);
+                    etiqueta.setLayoutY(yOffset + alturaBloque/2 - 8);
+                    etiqueta.setStyle("-fx-font-size: 9px;");
+                    ramContainer.getChildren().add(etiqueta);
+                }
+            }
+
+            ramContainer.getChildren().add(rect);
+            yOffset += alturaBloque;
+        }
+
+        // Mostrar estadísticas de RAM
+        Label statsRAM = new Label(String.format("RAM: %dMB / %dMB (%.1f%%)",
+                memoria.getMemoriaUsada(), memoria.getTamañoTotal(), memoria.getPorcentajeUso()));
+        statsRAM.setLayoutX(5);
+        statsRAM.setLayoutY(containerHeight - 20);
+        statsRAM.setStyle("-fx-font-size: 8px; -fx-background-color: white; -fx-padding: 2px;");
+        ramContainer.getChildren().add(statsRAM);
+    }
+
+    /**
+     * Actualiza la visualización del Swapping (Disco Duro)
+     */
+    private void actualizarSwapping() {
         discoContainer.getChildren().clear();
+
+        if (memoria == null) return;
+
+        // Obtener procesos en swapping
+        List<Proceso> procesosSwap = memoria.getSwapping().getProcesosEnSwapping();
+
+        double containerHeight = discoContainer.getPrefHeight();
+        double containerWidth = discoContainer.getPrefWidth();
+
+        if (procesosSwap.isEmpty()) {
+            // Disco vacío
+            Rectangle rectVacio = new Rectangle(containerWidth - 10, containerHeight - 30);
+            rectVacio.setX(5);
+            rectVacio.setY(5);
+            rectVacio.setFill(Color.WHITESMOKE);
+            rectVacio.setStroke(Color.GRAY);
+            rectVacio.setStrokeWidth(1);
+            discoContainer.getChildren().add(rectVacio);
+
+            Label etiquetaVacio = new Label("DISCO VACÍO");
+            etiquetaVacio.setLayoutX(containerWidth/2 - 35);
+            etiquetaVacio.setLayoutY(containerHeight/2);
+            etiquetaVacio.setStyle("-fx-font-size: 10px; -fx-text-fill: gray;");
+            discoContainer.getChildren().add(etiquetaVacio);
+        } else {
+            // Calcular memoria total en swapping
+            int memoriaSwapTotal = memoria.getSwapping().getMemoriaRequerida();
+            double yOffset = 5;
+
+            for (Proceso proceso : procesosSwap) {
+                // Calcular altura proporcional
+                double alturaProceso = Math.max(20, (double) proceso.getTamanoMemoria() / memoriaSwapTotal * (containerHeight - 40));
+
+                // Crear rectángulo para el proceso
+                Rectangle rect = new Rectangle(containerWidth - 10, alturaProceso);
+                rect.setX(5);
+                rect.setY(yOffset);
+                rect.setStroke(Color.BLACK);
+                rect.setStrokeWidth(1);
+
+                // Color del proceso
+                Color colorProceso = proceso.getColor();
+                rect.setFill(colorProceso != null ? colorProceso.deriveColor(0, 1, 0.7, 1) : Color.LIGHTYELLOW);
+
+                // Etiqueta con ID del proceso
+                Label etiqueta = new Label("P" + proceso.getId() + " (" + proceso.getTamanoMemoria() + "MB)");
+                etiqueta.setLayoutX(8);
+                etiqueta.setLayoutY(yOffset + alturaProceso/2 - 8);
+                etiqueta.setStyle("-fx-font-size: 9px; -fx-font-weight: bold;");
+
+                discoContainer.getChildren().add(rect);
+                discoContainer.getChildren().add(etiqueta);
+
+                yOffset += alturaProceso + 2;
+            }
+        }
+
+        // Mostrar estadísticas de Swapping
+        Label statsSwap = new Label(String.format("Swap: %d procesos (%dMB)",
+                memoria.getSwapping().getCantidadProcesos(),
+                memoria.getSwapping().getMemoriaRequerida()));
+        statsSwap.setLayoutX(5);
+        statsSwap.setLayoutY(containerHeight - 20);
+        statsSwap.setStyle("-fx-font-size: 8px; -fx-background-color: white; -fx-padding: 2px;");
+        discoContainer.getChildren().add(statsSwap);
     }
 
     private void prepararGantt() {
@@ -309,9 +577,19 @@ public class HelloController implements Initializable {
                     // 1. Verificar llegadas de procesos
                     procesosPendientes.removeIf(proceso -> {
                         if (proceso.getTiempoLlegada() <= tiempoActual) {
-                            procesosListos.add(proceso);
-                            proceso.setEstado(EstadoProceso.LISTO);
-                            System.out.println("⏰ t=" + tiempoActual + ": Proceso " + proceso.getId() + " llegó");
+                            // Intentar asignar memoria al proceso
+                            if (memoria.asignarMemoria(proceso)) {
+                                procesosListos.add(proceso);
+                                proceso.setEstado(EstadoProceso.LISTO);
+                                System.out.println("⏰ t=" + tiempoActual + ": Proceso " + proceso.getId() + " llegó y obtuvo memoria");
+                            } else {
+                                // No hay memoria, enviar a swapping
+                                memoria.moverASwapping(proceso);
+                                System.out.println("⏰ t=" + tiempoActual + ": Proceso " + proceso.getId() + " llegó pero fue a SWAP");
+                            }
+
+                            // Actualizar visualización de memoria
+                            actualizarVisualizacionMemoria();
                             return true;
                         }
                         return false;
@@ -357,7 +635,14 @@ public class HelloController implements Initializable {
                         if (tiempoRestante <= 0) {
                             proceso.setEstado(EstadoProceso.TERMINADO);
                             coresALiberar.add(coreId);
+
+                            // Liberar memoria del proceso terminado
+                            memoria.liberarMemoria(proceso);
+
                             System.out.println("✅ t=" + tiempoActual + ": Proceso " + proceso.getId() + " terminado en Core-" + coreId);
+
+                            // Actualizar visualización de memoria
+                            actualizarVisualizacionMemoria();
                         }
                     }
 
@@ -451,22 +736,7 @@ public class HelloController implements Initializable {
         System.out.println("🛑 Simulación detenida");
     }
 
-    @FXML
-    private void onRetryClicked() {
-        onStopClicked();
 
-        if (scheduledExecutor != null) {
-            scheduledExecutor.shutdownNow();
-            scheduledExecutor = Executors.newScheduledThreadPool(2);
-        }
-
-        Platform.runLater(() -> {
-            prepararGantt();
-            limpiarMemoria();
-        });
-
-        System.out.println("🔄 Simulación reiniciada");
-    }
 
     @FXML
     private void onStatsClicked() {
@@ -475,6 +745,9 @@ public class HelloController implements Initializable {
         }
         if (manejoProcesos != null) {
             System.out.println(manejoProcesos.getEstadisticas());
+        }
+        if (memoria != null) {
+            memoria.imprimirEstado();
         }
     }
 
@@ -545,5 +818,36 @@ public class HelloController implements Initializable {
                 coloresDisponibles.add(seleccionado.getColor());
             }
         }
+    }
+
+    @FXML
+    private void onRetryClicked() {
+        onStopClicked();
+
+        if (scheduledExecutor != null) {
+            scheduledExecutor.shutdownNow();
+            scheduledExecutor = Executors.newScheduledThreadPool(2);
+        }
+
+        Platform.runLater(() -> {
+            prepararGantt();
+            // Reiniciar memoria y actualizar visualización
+            if (memoria != null) {
+                memoria.reiniciar();
+                actualizarVisualizacionMemoria();
+            }
+
+            // Recrear procesos predefinidos si la lista está vacía
+            if (procesos.isEmpty()) {
+                // Restaurar colores disponibles
+                coloresDisponibles.clear();
+                coloresDisponibles.addAll(Arrays.asList(
+                        Color.RED, Color.BLUE, Color.GREEN, Color.ORANGE, Color.PURPLE, Color.BROWN
+                ));
+                crearProcesosPredefinidos();
+            }
+        });
+
+        System.out.println("🔄 Simulación reiniciada");
     }
 }
