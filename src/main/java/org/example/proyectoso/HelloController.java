@@ -1,6 +1,8 @@
 /**
  * Actualiza la visualización de memoria RAM y Swapping (Disco)
- */package org.example.proyectoso;
+ * CORREGIDO: Ahora usa 6 cores correctamente
+ */
+package org.example.proyectoso;
 
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -64,7 +66,7 @@ public class HelloController implements Initializable {
     // Lista observable de procesos y colores disponibles
     private ObservableList<Proceso> procesos;
     private final List<Color> coloresDisponibles = new ArrayList<>(Arrays.asList(
-            Color.RED, Color.BLUE, Color.GREEN, Color.ORANGE, Color.PURPLE
+            Color.RED, Color.BLUE, Color.GREEN, Color.ORANGE, Color.PURPLE, Color.BROWN
     ));
 
     // Tabla de colas de procesos
@@ -99,6 +101,9 @@ public class HelloController implements Initializable {
 
     /** Delay between simulation steps in milliseconds */
     private static long STEP_DELAY_MS = 200;
+
+    // CONSTANTE PARA 6 CORES
+    private static final int NUMERO_CORES = 6;
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
@@ -207,10 +212,9 @@ public class HelloController implements Initializable {
                 procesos.stream().mapToInt(Proceso::getTamanoMemoria).sum());
     }
 
-
     private void inicializarSistemaProcesamiento() {
-        // Crear CPU con 5 cores (no 6)
-        cpu = new CPU(5);
+        // CORREGIDO: Crear CPU con 6 cores (no 5)
+        cpu = new CPU(NUMERO_CORES);
 
         // Crear memoria de 2GB (2048 MB)
         memoria = new Memoria(2048);
@@ -224,7 +228,7 @@ public class HelloController implements Initializable {
         // Crear executor para actualizaciones de interfaz
         scheduledExecutor = Executors.newScheduledThreadPool(2);
 
-        System.out.println("🔧 Sistema de procesamiento inicializado (5 cores)");
+        System.out.println("🔧 Sistema de procesamiento inicializado (" + NUMERO_CORES + " cores)");
     }
 
     private void configurarPlanificador() {
@@ -255,30 +259,34 @@ public class HelloController implements Initializable {
 
     private void generarGanttVacio() {
         gridGantt.getChildren().clear();
-        int tiempoTotal = 200; // Cambiado de 100 a 200
+        int tiempoTotal = 200; // Tiempo máximo para mostrar
 
-        celdasGantt = new Rectangle[6][tiempoTotal]; // 6 cores máximo
+        // CORREGIDO: Crear matriz para 6 cores
+        celdasGantt = new Rectangle[NUMERO_CORES][tiempoTotal];
 
+        // Agregar etiquetas de tiempo en la primera fila
         for (int t = 0; t < tiempoTotal; t++) {
             Label tiempoLabel = new Label("t" + t);
             tiempoLabel.setPrefSize(30, 30);
             tiempoLabel.setStyle("-fx-border-color: gray; -fx-alignment: center;");
-            gridGantt.add(tiempoLabel, t, 0);
+            gridGantt.add(tiempoLabel, t + 1, 0); // +1 para dejar espacio para etiquetas de cores
         }
 
-        for (int core = 0; core < 6; core++) {
-            // Agregar etiqueta de core
+        // CORREGIDO: Crear filas para 6 cores
+        for (int core = 0; core < NUMERO_CORES; core++) {
+            // Agregar etiqueta de core en la primera columna
             Label coreLabel = new Label("C" + core);
             coreLabel.setPrefSize(30, 30);
             coreLabel.setStyle("-fx-border-color: gray; -fx-alignment: center; -fx-background-color: lightgray;");
             gridGantt.add(coreLabel, 0, core + 1);
 
-            for (int col = 1; col < tiempoTotal; col++) {
+            // Crear celdas para este core
+            for (int col = 0; col < tiempoTotal; col++) {
                 Rectangle bloque = new Rectangle(30, 30);
                 bloque.setStroke(Color.GRAY);
                 bloque.setFill(Color.TRANSPARENT);
-                gridGantt.add(bloque, col, core + 1);
-                celdasGantt[core][col-1] = bloque;
+                gridGantt.add(bloque, col + 1, core + 1); // +1 para dejar espacio para etiqueta de core
+                celdasGantt[core][col] = bloque;
             }
         }
     }
@@ -346,6 +354,7 @@ public class HelloController implements Initializable {
             txtTime.setManaged(!ocultar);
         }
     }
+
     private void actualizarVisualizacionMemoria() {
         Platform.runLater(() -> {
             actualizarRAM();
@@ -521,6 +530,7 @@ public class HelloController implements Initializable {
 
     /**
      * Nueva simulación paralela - simulación por unidades de tiempo CPU Burst
+     * CORREGIDO: Ahora maneja correctamente 6 cores y gestión completa de memoria/swapping
      */
     private void ejecutarSimulacionParalela() {
         List<Proceso> listaProcesos = new ArrayList<>(procesos);
@@ -560,6 +570,11 @@ public class HelloController implements Initializable {
 
                     if (!corriendo) break;
 
+                    System.out.println("📊 t=" + tiempoActual + " - Pendientes: " + procesosPendientes.size() +
+                            ", Listos: " + procesosListos.size() +
+                            ", En ejecución: " + procesosEnCores.size() +
+                            ", En swap: " + memoria.getSwapping().getCantidadProcesos());
+
                     // 1. Verificar llegadas de procesos
                     procesosPendientes.removeIf(proceso -> {
                         if (proceso.getTiempoLlegada() <= tiempoActual) {
@@ -571,6 +586,7 @@ public class HelloController implements Initializable {
                             } else {
                                 // No hay memoria, enviar a swapping
                                 memoria.moverASwapping(proceso);
+                                proceso.setEstado(EstadoProceso.ESPERANDO);
                                 System.out.println("⏰ t=" + tiempoActual + ": Proceso " + proceso.getId() + " llegó pero fue a SWAP");
                             }
 
@@ -581,22 +597,17 @@ public class HelloController implements Initializable {
                         return false;
                     });
 
-                    // 2. Asignar procesos a cores libres usando SJF
-                    if (!procesosListos.isEmpty()) {
-                        // Ordenar por SJF (menor duración primero)
-                        procesosListos.sort((p1, p2) -> Integer.compare(
-                                tiempoRestanteProceso.get(p1),
-                                tiempoRestanteProceso.get(p2)
-                        ));
+                    // 2. Intentar mover procesos de SWAP a RAM si hay espacio disponible
+                    List<Proceso> procesosMovidosDeSwap = memoria.getSwapping().procesarCola(memoria);
 
-                        for (int coreId = 0; coreId < 5 && !procesosListos.isEmpty(); coreId++) {
-                            if (!procesosEnCores.containsKey(coreId)) {
-                                Proceso proceso = procesosListos.remove(0);
-                                procesosEnCores.put(coreId, proceso);
-                                proceso.setEstado(EstadoProceso.EJECUTANDO);
-                                System.out.println("🔧 t=" + tiempoActual + ": Core-" + coreId + " ejecuta Proceso " + proceso.getId());
-                            }
-                        }
+                    // Agregar los procesos que salieron del swap a la lista de listos
+                    for (Proceso proceso : procesosMovidosDeSwap) {
+                        procesosListos.add(proceso);
+                        System.out.println("🔄 t=" + tiempoActual + ": Proceso " + proceso.getId() + " movido de SWAP a RAM");
+                    }
+
+                    if (!procesosMovidosDeSwap.isEmpty()) {
+                        actualizarVisualizacionMemoria();
                     }
 
                     // 3. Ejecutar procesos en cores por 1 unidad de tiempo
@@ -625,7 +636,7 @@ public class HelloController implements Initializable {
                             // Liberar memoria del proceso terminado
                             memoria.liberarMemoria(proceso);
 
-                            System.out.println("✅ t=" + tiempoActual + ": Proceso " + proceso.getId() + " terminado en Core-" + coreId);
+                            System.out.println("✅ t=" + tiempoActual + ": Proceso " + proceso.getId() + " TERMINADO en Core-" + coreId);
 
                             // Actualizar visualización de memoria
                             actualizarVisualizacionMemoria();
@@ -637,7 +648,27 @@ public class HelloController implements Initializable {
                         procesosEnCores.remove(coreId);
                     }
 
-                    // 5. Avanzar tiempo y esperar
+                    // 5. Asignar procesos listos a cores libres (DESPUÉS de liberar cores y procesar swapping)
+                    if (!procesosListos.isEmpty()) {
+                        // Ordenar por SJF (menor tiempo restante primero)
+                        procesosListos.sort((p1, p2) -> Integer.compare(
+                                tiempoRestanteProceso.get(p1),
+                                tiempoRestanteProceso.get(p2)
+                        ));
+
+                        // Asignar a cores disponibles
+                        for (int coreId = 0; coreId < NUMERO_CORES && !procesosListos.isEmpty(); coreId++) {
+                            if (!procesosEnCores.containsKey(coreId)) {
+                                Proceso proceso = procesosListos.remove(0);
+                                procesosEnCores.put(coreId, proceso);
+                                proceso.setEstado(EstadoProceso.EJECUTANDO);
+                                System.out.println("🔧 t=" + tiempoActual + ": Core-" + coreId + " ejecuta Proceso " + proceso.getId() +
+                                        " (tiempo restante: " + tiempoRestanteProceso.get(proceso) + ")");
+                            }
+                        }
+                    }
+
+                    // 6. Avanzar tiempo y esperar
                     tiempoActual++;
                     Thread.sleep(STEP_DELAY_MS);
                 }
@@ -648,6 +679,9 @@ public class HelloController implements Initializable {
                 Platform.runLater(() -> {
                     corriendo = false;
                     System.out.println("🏁 Simulación terminada en t=" + tiempoActual);
+                    System.out.println("📈 Procesos completados: " +
+                            listaProcesos.stream().mapToInt(p -> p.getEstado() == EstadoProceso.TERMINADO ? 1 : 0).sum() +
+                            "/" + listaProcesos.size());
                 });
             }
         });
@@ -700,7 +734,7 @@ public class HelloController implements Initializable {
         // Iniciar simulación paralela
         ejecutarSimulacionParalela();
 
-        System.out.println("🚀 Simulación paralela iniciada con " + procesos.size() + " procesos");
+        System.out.println("🚀 Simulación paralela iniciada con " + procesos.size() + " procesos en " + NUMERO_CORES + " cores");
     }
 
     @FXML
@@ -726,8 +760,6 @@ public class HelloController implements Initializable {
 
         System.out.println("🛑 Simulación detenida");
     }
-
-
 
     @FXML
     private void onStatsClicked() {
@@ -834,15 +866,15 @@ public class HelloController implements Initializable {
 
             // Recrear procesos predefinidos si la lista está vacía
             if (procesos.isEmpty()) {
-                // Restaurar colores disponibles
+                // Restaurar colores disponibles (incluyendo el nuevo color BROWN para 6 cores)
                 coloresDisponibles.clear();
                 coloresDisponibles.addAll(Arrays.asList(
-                        Color.RED, Color.BLUE, Color.GREEN, Color.ORANGE, Color.PURPLE
+                        Color.RED, Color.BLUE, Color.GREEN, Color.ORANGE, Color.PURPLE, Color.BROWN
                 ));
                 crearProcesosPredefinidos();
             }
         });
 
-        System.out.println("🔄 Simulación reiniciada");
+        System.out.println("🔄 Simulación reiniciada con " + NUMERO_CORES + " cores");
     }
 }

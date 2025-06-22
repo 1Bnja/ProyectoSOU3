@@ -98,8 +98,8 @@ public class Memoria {
                     fusionarBloquesLibres();
                     calcularFragmentacion();
 
-                    // Intentar procesar cola de swapping
-                    procesarSwapping();
+                    // ❌ ELIMINAR ESTA LÍNEA
+                    // procesarSwapping();
 
                     return true;
                 }

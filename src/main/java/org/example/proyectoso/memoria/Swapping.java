@@ -82,6 +82,16 @@ public class Swapping {
             return false;
         }
     }
+    public boolean removerProceso(Proceso proceso) {
+        synchronized (lock) {
+            boolean removido = colaSwapping.remove(proceso);
+            if (removido) {
+                procesosSwappeados--;
+                System.out.println("❌ Proceso " + proceso.getId() + " removido del swapping");
+            }
+            return removido;
+        }
+    }
 
     /**
      * Obtiene el siguiente proceso en la cola sin removerlo
