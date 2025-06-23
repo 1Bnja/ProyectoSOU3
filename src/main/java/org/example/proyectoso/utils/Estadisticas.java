@@ -396,48 +396,12 @@ public class Estadisticas {
         writer.write("Eficiencia del algoritmo " + algoritmoUtilizado + ": " +
                 DF.format(calcularEficiencia(procesos, tiempoActual, 6)) + "%\n");
 
-        writer.write("\nRECOMENDACIONES:\n");
-        generarRecomendaciones(writer, procesos, algoritmoUtilizado, quantumUtilizado, tiempoActual);
 
         writer.write("\n" + "=".repeat(80) + "\n");
-        writer.write("Fin del reporte - Generado automáticamente por el Simulador de SO\n");
+        writer.write("Fin del reporte\n");
         writer.write("=".repeat(80) + "\n");
     }
 
-    private static void generarRecomendaciones(FileWriter writer, List<Proceso> procesos,
-                                               String algoritmoUtilizado, int quantumUtilizado,
-                                               int tiempoActual) throws IOException {
-        double promedioEspera = calcularTiempoEsperaPromedio(procesos);
-
-        if (promedioEspera > 50) {
-            writer.write("- El tiempo de espera promedio es alto. Considere optimizar el algoritmo de planificación.\n");
-        }
-
-        if (promedioEspera < 10) {
-            writer.write("✓ " + algoritmoUtilizado + " está funcionando eficientemente - bajo tiempo de espera promedio.\n");
-        }
-
-        int procesosNoCompletados = (int) procesos.stream()
-                .filter(p -> p.getEstado() != EstadoProceso.TERMINADO)
-                .count();
-
-        if (procesosNoCompletados > 0) {
-            writer.write("- " + procesosNoCompletados + " proceso(s) no completado(s). Considere aumentar el tiempo de simulación.\n");
-        }
-
-        if ("SJF".equals(algoritmoUtilizado)) {
-            writer.write("- SJF es eficiente para minimizar tiempo de espera promedio.\n");
-        } else if ("Round Robin".equals(algoritmoUtilizado)) {
-            writer.write("- Round Robin proporciona buena respuesta interactiva.\n");
-            if (quantumUtilizado < 50) {
-                writer.write("- Quantum bajo puede causar muchos cambios de contexto.\n");
-            }
-        }
-    }
-
-    // =====================================================
-    // MÉTODOS AUXILIARES
-    // =====================================================
 
     private static String calcularDuracionReal(long tiempoInicioSimulacion) {
         if (tiempoInicioSimulacion > 0) {

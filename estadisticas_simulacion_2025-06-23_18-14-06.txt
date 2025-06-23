@@ -4,12 +4,13 @@
 
 INFORMACIÓN GENERAL
 --------------------------------------------------
-Fecha y hora: 23/06/2025 17:29:27
-Algoritmo utilizado: SJF
+Fecha y hora: 23/06/2025 18:14:06
+Algoritmo utilizado: Round Robin
+Quantum: 100 ms
 Tiempo total de simulación: 91 unidades
-Duración real: 18,58 segundos
+Duración real: 4,99 segundos
 Total de procesos: 5
-Cores utilizados: 5
+Cores utilizados: 6
 Memoria total: 2048 MB
 
 ESTADÍSTICAS POR PROCESO
@@ -41,7 +42,7 @@ Tiempo promedio de espera: 0 unidades
 Tiempo promedio de respuesta: 0 unidades
 Tiempo promedio de retorno: 50 unidades
 Throughput: 0,05 procesos/unidad tiempo
-Eficiencia del sistema: 54,95%
+Eficiencia del sistema: 45,79%
 
 ESTADÍSTICAS DE MEMORIA
 --------------------------------------------------
@@ -75,16 +76,11 @@ RESUMEN FINAL Y ANÁLISIS
 Proceso más rápido: P3 (bombarido crocodilo) - 23 unidades
 Proceso más lento: P4 (capuccion assasino) - 81 unidades
 
-ANÁLISIS DEL ALGORITMO SJF:
+ANÁLISIS DEL ALGORITMO Round Robin:
 Tiempo de espera promedio: 0 unidades
 Procesos que tuvieron que esperar: 0
-Eficiencia del algoritmo SJF: 54,95%
-
-RECOMENDACIONES ESPECÍFICAS PARA SJF:
-✓ SJF está funcionando eficientemente - bajo tiempo de espera promedio.
-- Bajo uso de CPU. El sistema tiene capacidad para más procesos.
-- SJF es eficiente para minimizar tiempo de espera promedio.
+Eficiencia del algoritmo Round Robin: 45,79%
 
 ================================================================================
-Fin del reporte - Generado automáticamente por el Simulador de SO
+Fin del reporte
 ================================================================================
