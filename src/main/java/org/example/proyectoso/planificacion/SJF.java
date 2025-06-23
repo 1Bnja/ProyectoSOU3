@@ -378,42 +378,8 @@ public class SJF extends Planificacion {
         return estado.toString();
     }
 
-    
-    public boolean isPreemptivo() {
-        return preemptivo;
-    }
 
-    public void setPreemptivo(boolean preemptivo) {
-        synchronized (sjfLock) {
-            this.preemptivo = preemptivo;
-            System.out.println("🔄 SJF modo cambiado a: " +
-                    (preemptivo ? "Preemptivo (SRTF)" : "No Preemptivo"));
-        }
-    }
 
-    public boolean isPausado() {
-        synchronized (sjfLock) {
-            return pausado;
-        }
-    }
-
-    public int getCambiosContexto() {
-        synchronized (sjfLock) {
-            return cambiosContexto;
-        }
-    }
-
-    public long getTiempoPromedioEspera() {
-        synchronized (sjfLock) {
-            return tiempoPromedioEspera;
-        }
-    }
-
-    public long getTiempoPromedioRespuesta() {
-        synchronized (sjfLock) {
-            return tiempoPromedioRespuesta;
-        }
-    }
 
     @Override
     public String toString() {

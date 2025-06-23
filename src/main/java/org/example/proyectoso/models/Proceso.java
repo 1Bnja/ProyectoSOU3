@@ -142,15 +142,6 @@ public class Proceso {
         }
     }
 
-    public void bloquear() {
-        estado = EstadoProceso.ESPERANDO;
-    }
-
-    public void desbloquear() {
-        if (estado == EstadoProceso.ESPERANDO) {
-            estado = EstadoProceso.LISTO;
-        }
-    }
 
     public void finalizar(long tiempoActual) {
         estado = EstadoProceso.TERMINADO;
@@ -160,11 +151,6 @@ public class Proceso {
         System.out.println("✅ Proceso " + id + " (" + nombre + ") TERMINADO");
     }
 
-    public void actualizarTiempoEspera(int incremento) {
-        if (estado == EstadoProceso.LISTO || estado == EstadoProceso.ESPERANDO) {
-            tiempoEspera += incremento;
-        }
-    }
 
     public double getPorcentajeCompletitud() {
         return (double) tiempoEjecutado / duracion * 100;
@@ -178,13 +164,7 @@ public class Proceso {
         return estado == EstadoProceso.EJECUTANDO;
     }
 
-    public boolean estaListo() {
-        return estado == EstadoProceso.LISTO;
-    }
 
-    public boolean estaEsperando() {
-        return estado == EstadoProceso.ESPERANDO;
-    }
 
     
     public int getId() {
@@ -239,17 +219,13 @@ public class Proceso {
         this.estado = estado;
     }
 
-    public int getTiempoEjecutado() {
-        return tiempoEjecutado;
-    }
+
 
     public int getTiempoRestante() {
         return tiempoRestante;
     }
 
-    public int getQuantumRestante() {
-        return quantumRestante;
-    }
+
 
     public Color getColor() {
         return color;
@@ -259,13 +235,9 @@ public class Proceso {
         this.color = color;
     }
 
-    public long getTiempoInicioEjecucion() {
-        return tiempoInicioEjecucion;
-    }
 
-    public long getTiempoFinalizacion() {
-        return tiempoFinalizacion;
-    }
+
+
 
     
     public int getTiempoInicioReal() {
@@ -276,9 +248,7 @@ public class Proceso {
         return tiempoFinalizacionReal;
     }
 
-    public boolean yaComenzo() {
-        return yaComenzo;
-    }
+
 
     @Override
     public String toString() {
@@ -287,26 +257,7 @@ public class Proceso {
                 tamanoMemoria, getPorcentajeCompletitud());
     }
 
-    public String getInformacionDetallada() {
-        return String.format(
-                "Proceso %d (%s):\n" +
-                        "  Estado: %s\n" +
-                        "  Duración: %d ms\n" +
-                        "  Ejecutado: %d ms (%.1f%%)\n" +
-                        "  Restante: %d ms\n" +
-                        "  Memoria: %d MB\n" +
-                        "  Llegada: %d ms\n" +
-                        "  Espera: %d ms\n" +
-                        "  Respuesta: %d ms\n" +
-                        "  Retorno: %d ms\n" +
-                        "  Inicio real: %d\n" +
-                        "  Fin real: %d",
-                id, nombre, estado, duracion, tiempoEjecutado,
-                getPorcentajeCompletitud(), tiempoRestante, tamanoMemoria,
-                tiempoLlegada, getTiempoEspera(), getTiempoRespuesta(), getTiempoRetorno(),
-                tiempoInicioReal, tiempoFinalizacionReal
-        );
-    }
+
 
     @Override
     public boolean equals(Object obj) {

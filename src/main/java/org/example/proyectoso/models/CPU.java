@@ -20,7 +20,6 @@ public class CPU {
     private TipoAlgoritmo algoritmoActual = TipoAlgoritmo.ROUND_ROBIN;
 
     
-    private long tiempoInicioOperacion;
     private long tiempoTotalOperacion;
     private int procesosTotalesEjecutados;
 
@@ -56,212 +55,11 @@ public class CPU {
         
     }
 
-    
-    public boolean ejecutarProceso(Proceso proceso) {
-        synchronized (lock) {
-            Core coreLibre = obtenerCoreLibre();
 
-            if (coreLibre != null) {
-                return ejecutarEnCore(proceso, coreLibre);
-            }
-
-            return false; 
-        }
-    }
 
     
-    public boolean ejecutarEnCore(Proceso proceso, Core core) {
-        if (proceso == null || core == null) {
-            return false;
-        }
 
-        
-        core.setQuantum(quantumRoundRobin);
 
-        
-        if (core.asignarProceso(proceso)) {
-            
-            executorService.submit(() -> {
-                try {
-                    switch (algoritmoActual) {
-                        case ROUND_ROBIN:
-                            core.ejecutarQuantum();
-                            break;
-                        case FCFS:
-                        case SJF:
-                        case PRIORITY:
-                            core.ejecutarHastaCompletar();
-                            break;
-                    }
-                } catch (Exception e) {
-                    System.err.println("Error ejecutando proceso: " + e.getMessage());
-                }
-            });
-
-            return true;
-        }
-
-        return false;
-    }
-
-    
-    public void ejecutarProcesos(List<Proceso> procesos) {
-        if (procesos == null || procesos.isEmpty()) {
-            return;
-        }
-
-        synchronized (lock) {
-            ejecutando = true;
-            tiempoInicioOperacion = System.currentTimeMillis();
-        }
-
-        System.out.println("🚀 Iniciando ejecución de " + procesos.size() +
-                " procesos con algoritmo " + algoritmoActual);
-
-        try {
-            switch (algoritmoActual) {
-                case ROUND_ROBIN:
-                    ejecutarRoundRobin(procesos);
-                    break;
-                case FCFS:
-                    ejecutarFCFS(procesos);
-                    break;
-                case SJF:
-                    ejecutarSJF(procesos);
-                    break;
-                case PRIORITY:
-                    ejecutarPorPrioridad(procesos);
-                    break;
-            }
-        } finally {
-            synchronized (lock) {
-                ejecutando = false;
-                tiempoTotalOperacion = System.currentTimeMillis() - tiempoInicioOperacion;
-                procesosTotalesEjecutados += procesos.size();
-            }
-        }
-
-        System.out.println("✅ Ejecución completada en " + tiempoTotalOperacion + "ms");
-    }
-
-    
-    private void ejecutarRoundRobin(List<Proceso> procesos) {
-        Queue<Proceso> colaProcesos = new LinkedList<>(procesos);
-
-        while (!colaProcesos.isEmpty()) {
-            
-            List<Future<Boolean>> futures = new ArrayList<>();
-
-            for (Core core : cores) {
-                if (core.isLibre() && !colaProcesos.isEmpty()) {
-                    Proceso proceso = colaProcesos.poll();
-
-                    Future<Boolean> future = executorService.submit(() -> {
-                        core.asignarProceso(proceso);
-                        boolean terminado = core.ejecutarQuantum();
-
-                        
-                        if (!terminado && !proceso.haTerminado()) {
-                            synchronized (colaProcesos) {
-                                colaProcesos.offer(proceso);
-                            }
-                        }
-
-                        return terminado;
-                    });
-
-                    futures.add(future);
-                }
-            }
-
-            
-            for (Future<Boolean> future : futures) {
-                try {
-                    future.get();
-                } catch (InterruptedException | ExecutionException e) {
-                    System.err.println("Error en ejecución: " + e.getMessage());
-                }
-            }
-
-            
-            try {
-                Thread.sleep(10);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                break;
-            }
-        }
-    }
-
-    
-    private void ejecutarFCFS(List<Proceso> procesos) {
-        
-        List<Proceso> procesosOrdenados = new ArrayList<>(procesos);
-        procesosOrdenados.sort(Comparator.comparingInt(Proceso::getTiempoLlegada));
-
-        for (Proceso proceso : procesosOrdenados) {
-            
-            Core coreLibre = esperarCoreLibre();
-            ejecutarEnCore(proceso, coreLibre);
-
-            
-            while (coreLibre.isOcupado()) {
-                try {
-                    Thread.sleep(50);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    return;
-                }
-            }
-        }
-    }
-
-    
-    private void ejecutarSJF(List<Proceso> procesos) {
-        
-        List<Proceso> procesosOrdenados = new ArrayList<>(procesos);
-        procesosOrdenados.sort(Comparator.comparingInt(Proceso::getDuracion));
-
-        ejecutarFCFS(procesosOrdenados); 
-    }
-
-    
-    private void ejecutarPorPrioridad(List<Proceso> procesos) {
-        
-        List<Proceso> procesosOrdenados = new ArrayList<>(procesos);
-        procesosOrdenados.sort(Comparator.comparingInt(Proceso::getTamanoMemoria));
-
-        ejecutarFCFS(procesosOrdenados);
-    }
-
-    
-    private Core esperarCoreLibre() {
-        while (true) {
-            Core coreLibre = obtenerCoreLibre();
-            if (coreLibre != null) {
-                return coreLibre;
-            }
-
-            try {
-                Thread.sleep(50);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                return cores.get(0); 
-            }
-        }
-    }
-
-    
-    private Core obtenerCoreLibre() {
-        synchronized (lock) {
-            return cores.stream()
-                    .filter(Core::isLibre)
-                    .findFirst()
-                    .orElse(null);
-        }
-    }
-
-    
     public List<Core> getCoresLibres() {
         synchronized (lock) {
             return cores.stream()
@@ -324,26 +122,7 @@ public class CPU {
     }
 
     
-    public void reiniciar() {
-        synchronized (lock) {
-            detener();
 
-            
-            executorService = Executors.newFixedThreadPool(numeroCores);
-
-            
-            for (Core core : cores) {
-                core.forzarLiberacion();
-                core.reiniciarEstadisticas();
-            }
-
-            
-            tiempoTotalOperacion = 0;
-            procesosTotalesEjecutados = 0;
-
-            System.out.println("🔄 " + nombre + " reiniciada");
-        }
-    }
 
     
     public void setAlgoritmo(TipoAlgoritmo algoritmo) {
@@ -420,21 +199,9 @@ public class CPU {
     }
 
     
-    public void imprimirEstado() {
-        System.out.println(getEstadoActual());
-    }
 
     
-    public void imprimirEstadisticas() {
-        System.out.println(getEstadisticas());
-    }
 
-    
-    public List<Core> getCores() {
-        synchronized (lock) {
-            return new ArrayList<>(cores);
-        }
-    }
 
     public int getNumeroCores() {
         return numeroCores;
@@ -444,23 +211,6 @@ public class CPU {
         return nombre;
     }
 
-    public boolean isEjecutando() {
-        synchronized (lock) {
-            return ejecutando;
-        }
-    }
-
-    public TipoAlgoritmo getAlgoritmoActual() {
-        synchronized (lock) {
-            return algoritmoActual;
-        }
-    }
-
-    public int getQuantumRoundRobin() {
-        synchronized (lock) {
-            return quantumRoundRobin;
-        }
-    }
 
     public int getCoresLibresCount() {
         return getCoresLibres().size();
@@ -470,11 +220,7 @@ public class CPU {
         return getCoresOcupados().size();
     }
 
-    public long getTiempoTotalOperacion() {
-        synchronized (lock) {
-            return tiempoTotalOperacion;
-        }
-    }
+
 
     public int getProcesosTotalesEjecutados() {
         synchronized (lock) {

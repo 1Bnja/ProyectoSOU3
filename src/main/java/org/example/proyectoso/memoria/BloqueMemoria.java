@@ -61,15 +61,6 @@ public class BloqueMemoria {
     }
 
 
-    public void setTamaño(int tamaño) {
-        this.tamaño = tamaño;
-    }
-
-    public void setInicio(int inicio) {
-        this.inicio = inicio;
-    }
-
-
     @Override
     public String toString() {
         if (ocupado) {

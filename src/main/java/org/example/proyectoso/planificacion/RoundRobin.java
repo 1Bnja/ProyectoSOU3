@@ -20,9 +20,7 @@ public class RoundRobin extends Planificacion {
     private long tiempoPromedioRespuesta;
 
     
-    public RoundRobin() {
-        this(100);
-    }
+
 
     
     public RoundRobin(int quantum) {
@@ -222,31 +220,4 @@ public class RoundRobin extends Planificacion {
         }
     }
 
-    public int getQuantum() {
-        return quantum;
-    }
-
-    public boolean isPausado() {
-        synchronized (rrLock) {
-            return pausado;
-        }
-    }
-
-    public int getCambiosContexto() {
-        synchronized (rrLock) {
-            return cambiosContexto;
-        }
-    }
-
-    public long getTiempoPromedioEspera() {
-        synchronized (rrLock) {
-            return tiempoPromedioEspera;
-        }
-    }
-
-    public long getTiempoPromedioRespuesta() {
-        synchronized (rrLock) {
-            return tiempoPromedioRespuesta;
-        }
-    }
 }

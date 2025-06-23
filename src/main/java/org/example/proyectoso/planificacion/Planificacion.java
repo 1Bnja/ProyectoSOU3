@@ -130,16 +130,7 @@ public abstract class Planificacion {
     }
 
     
-    protected boolean todosProcesosTerminados(List<Proceso> procesos) {
-        return procesos.stream().allMatch(Proceso::haTerminado);
-    }
 
-    
-    protected List<Proceso> obtenerProcesosActivos(List<Proceso> procesos) {
-        return procesos.stream()
-                .filter(p -> !p.haTerminado())
-                .collect(java.util.stream.Collectors.toList());
-    }
 
     
     public String getEstadisticas() {
@@ -184,73 +175,9 @@ public abstract class Planificacion {
     }
 
     
-    protected String calcularMetricas(List<Proceso> procesos) {
-        if (procesos == null || procesos.isEmpty()) {
-            return "No hay procesos para calcular métricas";
-        }
-
-        List<Proceso> procesosTerminados = procesos.stream()
-                .filter(Proceso::haTerminado)
-                .collect(java.util.stream.Collectors.toList());
-
-        if (procesosTerminados.isEmpty()) {
-            return "Ningún proceso ha terminado aún";
-        }
-
-        double promedioTiempoEspera = procesosTerminados.stream()
-                .mapToInt(Proceso::getTiempoEspera)
-                .average()
-                .orElse(0.0);
-
-        double promedioTiempoRespuesta = procesosTerminados.stream()
-                .mapToInt(Proceso::getTiempoRespuesta)
-                .average()
-                .orElse(0.0);
-
-        double promedioTiempoRetorno = procesosTerminados.stream()
-                .mapToInt(Proceso::getTiempoRetorno)
-                .average()
-                .orElse(0.0);
-
-        StringBuilder metricas = new StringBuilder();
-        metricas.append("=== MÉTRICAS DE RENDIMIENTO ===\n");
-        metricas.append("Procesos analizados: ").append(procesosTerminados.size()).append("\n");
-        metricas.append("Tiempo promedio de espera: ").append(String.format("%.2f", promedioTiempoEspera)).append("ms\n");
-        metricas.append("Tiempo promedio de respuesta: ").append(String.format("%.2f", promedioTiempoRespuesta)).append("ms\n");
-        metricas.append("Tiempo promedio de retorno: ").append(String.format("%.2f", promedioTiempoRetorno)).append("ms\n");
-
-        return metricas.toString();
-    }
 
     
-    public boolean isEjecutando() {
-        synchronized (lock) {
-            return ejecutando;
-        }
-    }
 
-    public CPU getCpu() {
-        synchronized (lock) {
-            return cpu;
-        }
-    }
-
-    public int getProcesosEjecutados() {
-        synchronized (lock) {
-            return procesosEjecutados;
-        }
-    }
-
-    public long getTiempoEjecucion() {
-        synchronized (lock) {
-            if (tiempoFinEjecucion > tiempoInicioEjecucion) {
-                return tiempoFinEjecucion - tiempoInicioEjecucion;
-            } else if (ejecutando && tiempoInicioEjecucion > 0) {
-                return System.currentTimeMillis() - tiempoInicioEjecucion;
-            }
-            return 0;
-        }
-    }
 
     @Override
     public String toString() {

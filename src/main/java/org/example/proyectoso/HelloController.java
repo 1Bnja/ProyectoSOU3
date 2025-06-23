@@ -764,18 +764,7 @@ public class HelloController implements Initializable {
 
 
 
-    @FXML
-    private void onStatsClicked() {
-        if (cpu != null) {
-            System.out.println(cpu.getEstadisticas());
-        }
-        if (manejoProcesos != null) {
-            System.out.println(manejoProcesos.getEstadisticas());
-        }
-        if (memoria != null) {
-            memoria.imprimirEstado();
-        }
-    }
+
 
     @FXML
     private void onAddClicked() {

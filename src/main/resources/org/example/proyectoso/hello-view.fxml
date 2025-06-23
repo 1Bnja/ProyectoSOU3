@@ -29,7 +29,6 @@
             <Button fx:id="btnPause" onAction="#onPauseClicked" prefHeight="40.0" prefWidth="100.0" text="PAUSE"><HBox.margin><Insets left="20.0" top="30.0" /></HBox.margin></Button>
             <Button fx:id="btnStop" onAction="#onStopClicked" prefHeight="40.0" prefWidth="100.0" text="STOP"><HBox.margin><Insets left="20.0" top="30.0" /></HBox.margin></Button>
             <Button fx:id="btnRetry" onAction="#onRetryClicked" prefHeight="40.0" prefWidth="100.0" text="RETRY"><HBox.margin><Insets left="20.0" top="30.0" /></HBox.margin></Button>
-            <Button fx:id="btnStats" onAction="#onStatsClicked" prefHeight="40.0" prefWidth="100.0" text="STATS"><HBox.margin><Insets left="20.0" top="30.0" /></HBox.margin></Button>
          </children>
       </HBox>
 

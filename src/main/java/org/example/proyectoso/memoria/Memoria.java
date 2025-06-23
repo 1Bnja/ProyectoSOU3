@@ -185,16 +185,7 @@ public class Memoria {
     }
 
 
-    public int[] getEstadoBasico() {
-        synchronized (lock) {
-            return new int[]{
-                    memoriaTotalUsada,
-                    TAMAÑO_TOTAL - memoriaTotalUsada,
-                    fragmentacionExterna,
-                    swapping.getCantidadProcesos()
-            };
-        }
-    }
+
 
 
     public void imprimirEstado() {
@@ -244,9 +235,6 @@ public class Memoria {
         return TAMAÑO_TOTAL - memoriaTotalUsada;
     }
 
-    public int getFragmentacionExterna() {
-        return fragmentacionExterna;
-    }
 
     public double getPorcentajeUso() {
         return (double) memoriaTotalUsada / TAMAÑO_TOTAL * 100;
@@ -256,15 +244,4 @@ public class Memoria {
         return swapping;
     }
 
-    public int getCantidadBloques() {
-        return bloques.size();
-    }
-
-    public int getBloquesLibres() {
-        return (int) bloques.stream().filter(b -> !b.isOcupado()).count();
-    }
-
-    public int getBloquesOcupados() {
-        return (int) bloques.stream().filter(b -> b.isOcupado()).count();
-    }
 }

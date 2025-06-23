@@ -53,35 +53,10 @@ public class Swapping {
     }
 
     
-    public boolean removerProceso(int procesoId) {
-        synchronized (lock) {
-            Iterator<Proceso> iterator = colaSwapping.iterator();
 
-            while (iterator.hasNext()) {
-                Proceso proceso = iterator.next();
-                if (proceso.getId() == procesoId) {
-                    iterator.remove();
-                    procesosSwappeados--;
-                    System.out.println("❌ Proceso " + procesoId + " removido del swapping");
-                    return true;
-                }
-            }
-            return false;
-        }
-    }
 
     
-    public Proceso verSiguiente() {
-        return colaSwapping.peek();
-    }
 
-    
-    public boolean estaEnSwapping(int procesoId) {
-        synchronized (lock) {
-            return colaSwapping.stream()
-                    .anyMatch(p -> p.getId() == procesoId);
-        }
-    }
 
 
     public List<Proceso> getProcesosEnSwapping() {
@@ -100,13 +75,6 @@ public class Swapping {
     }
 
 
-    public Proceso getProcesoMenorMemoria() {
-        synchronized (lock) {
-            return colaSwapping.stream()
-                    .min(Comparator.comparingInt(Proceso::getTamanoMemoria))
-                    .orElse(null);
-        }
-    }
 
 
     public void limpiar() {
@@ -118,12 +86,7 @@ public class Swapping {
     }
 
 
-    public String getEstadisticas() {
-        synchronized (lock) {
-            return String.format("Procesos: %d, Memoria requerida: %dMB",
-                    procesosSwappeados, getMemoriaRequerida());
-        }
-    }
+
 
 
     public void imprimirEstado() {
@@ -151,11 +114,5 @@ public class Swapping {
         return procesosSwappeados;
     }
 
-    public boolean estaVacio() {
-        return colaSwapping.isEmpty();
-    }
 
-    public int getTamañoCola() {
-        return colaSwapping.size();
-    }
 }
