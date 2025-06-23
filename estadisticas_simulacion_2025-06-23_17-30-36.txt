@@ -1,0 +1,98 @@
+================================================================================
+           REPORTE DE ESTADÍSTICAS DE SIMULACIÓN
+================================================================================
+
+INFORMACIÓN GENERAL
+--------------------------------------------------
+Fecha y hora: 23/06/2025 17:30:36
+Algoritmo utilizado: SJF
+Tiempo total de simulación: 201 unidades
+Duración real: 41,05 segundos
+Total de procesos: 9
+Cores utilizados: 5
+Memoria total: 2048 MB
+
+ESTADÍSTICAS POR PROCESO
+--------------------------------------------------
+ID   Nombre               Llegada  Burst    Memoria  T.Inicio   T.Fin      T.Espera   T.Retorno  Estado  
+--------------------------------------------------------------------------------------------------------------
+1    tralalero tralala    1        45       412      1          46         0          45         TERMINADO
+2    tung tung sahur      2        67       523      2          69         0          67         TERMINADO
+3    bombarido crocodilo  6        23       367      46         69         40         63         TERMINADO
+4    capuccion assasino   10       81       448      69         150        59         140        TERMINADO
+5    br br patatim        15       34       298      -1         -1         0          0          LISTO   
+6    dad                  1        200      1        1          201        0          200        TERMINADO
+7    dsada                1        200      1        1          201        0          200        TERMINADO
+8    1223                 1        200      1        1          201        0          200        TERMINADO
+9    asda                 1        200      1        1          201        0          200        TERMINADO
+
+VERIFICACIÓN DEL ALGORITMO SJF
+--------------------------------------------------
+Análisis del orden de ejecución por SJF:
+
+Procesos que llegaron en t=1:
+  Orden esperado (SJF): P1(burst=45) → P6(burst=200) → P7(burst=200) → P8(burst=200) → P9(burst=200)
+  Orden real ejecutado: P1(inicio=1) → P6(inicio=1) → P7(inicio=1) → P8(inicio=1) → P9(inicio=1)
+  ✓ SJF implementado correctamente: SÍ
+
+Procesos que llegaron individualmente:
+  P2 (llegada=2, burst=67, inicio=2, espera=0)
+  P3 (llegada=6, burst=23, inicio=46, espera=40)
+  P4 (llegada=10, burst=81, inicio=69, espera=59)
+
+ESTADÍSTICAS DE RENDIMIENTO
+--------------------------------------------------
+Procesos completados: 8 / 9
+Porcentaje completado: 88,89%
+Tiempo promedio de espera: 12,38 unidades
+Tiempo promedio de respuesta: 12,38 unidades
+Tiempo promedio de retorno: 139,38 unidades
+Throughput: 0,04 procesos/unidad tiempo
+Eficiencia del sistema: 101,09%
+
+ESTADÍSTICAS DE MEMORIA
+--------------------------------------------------
+Memoria total: 2048 MB
+Memoria usada: 298 MB
+Memoria libre: 1750 MB
+Porcentaje de uso: 14,55%
+Procesos en swap: 0
+Memoria en swap: 0 MB
+Bloques libres: 1
+Fragmentación: NO
+
+ESTADÍSTICAS DE CPU
+--------------------------------------------------
+Número de cores: 6
+Cores libres: 6
+Cores ocupados: 0
+Uso promedio de CPU: 0%
+Procesos ejecutados: 0
+
+Estado por core:
+  Core 0: LIBRE - Uso: 0%
+  Core 1: LIBRE - Uso: 0%
+  Core 2: LIBRE - Uso: 0%
+  Core 3: LIBRE - Uso: 0%
+  Core 4: LIBRE - Uso: 0%
+  Core 5: LIBRE - Uso: 0%
+
+RESUMEN FINAL Y ANÁLISIS
+--------------------------------------------------
+Proceso más rápido: P1 (tralalero tralala) - 45 unidades
+Proceso más lento: P6 (dad) - 200 unidades
+
+ANÁLISIS DEL ALGORITMO SJF:
+Tiempo de espera promedio: 12,38 unidades
+Procesos que tuvieron que esperar: 2
+Eficiencia del algoritmo SJF: 101,09%
+
+RECOMENDACIONES ESPECÍFICAS PARA SJF:
+- 2 procesos experimentaron espera debido a llegadas tardías.
+- Bajo uso de CPU. El sistema tiene capacidad para más procesos.
+- 1 proceso(s) no completado(s). Considere aumentar el tiempo de simulación.
+- SJF es eficiente para minimizar tiempo de espera promedio.
+
+================================================================================
+Fin del reporte - Generado automáticamente por el Simulador de SO
+================================================================================

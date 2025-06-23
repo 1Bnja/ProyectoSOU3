@@ -34,7 +34,7 @@ import java.time.format.DateTimeFormatter;
 import java.text.DecimalFormat;
 import java.util.Comparator;
 import java.util.stream.Collectors;
-
+import org.example.proyectoso.utils.Estadisticas;
 
 
 public class HelloController implements Initializable {
@@ -101,6 +101,7 @@ public class HelloController implements Initializable {
     private Rectangle[][] celdasGantt;
     private Map<Proceso, Integer> filaMapa = new HashMap<>();
     private int nextFila = 0;
+
 
     
     private static long STEP_DELAY_MS = 200;
@@ -1003,63 +1004,16 @@ public class HelloController implements Initializable {
             datosTablaEstados.add(new FilaEstadoProcesos("", "", "", ""));
         });
     }
-    public String getEstadisticasEstados() {
-        StringBuilder stats = new StringBuilder();
-        stats.append("=== ESTADÍSTICAS DE ESTADOS ===\n");
-        stats.append("Procesos Nuevos: ").append(procesosNuevo.size()).append("\n");
-        stats.append("Procesos Listos: ").append(procesosListo.size()).append("\n");
-        stats.append("Procesos en Espera: ").append(procesosEspera.size()).append("\n");
-        stats.append("Procesos Terminados: ").append(procesosTerminado.size()).append("\n");
-        stats.append("Total de Procesos: ").append(procesos.size()).append("\n");
-
-        if (!procesos.isEmpty()) {
-            double porcentajeTerminados = (double) procesosTerminado.size() / procesos.size() * 100;
-            stats.append("Progreso: ").append(String.format("%.1f%%", porcentajeTerminados)).append("\n");
-        }
-
-        return stats.toString();
-    }
     private void generarArchivoEstadisticas() {
-        try {
-            
-            LocalDateTime ahora = LocalDateTime.now();
-            DateTimeFormatter formato = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss");
-            String nombreArchivo = "estadisticas_simulacion_" + formato.format(ahora) + ".txt";
-
-            
-            FileWriter writer = new FileWriter(nombreArchivo);
-
-            
-            writer.write("=" .repeat(80) + "\n");
-            writer.write("           REPORTE DE ESTADÍSTICAS DE SIMULACIÓN\n");
-            writer.write("=" .repeat(80) + "\n\n");
-
-            
-            escribirInformacionGeneral(writer);
-
-            
-            escribirEstadisticasPorProceso(writer);
-
-            
-            escribirEstadisticasRendimiento(writer);
-
-            
-            escribirEstadisticasMemoria(writer);
-
-            
-            escribirEstadisticasCPU(writer);
-
-            
-            escribirResumenFinal(writer);
-
-            writer.close();
-
-            System.out.println("📄 Archivo de estadísticas generado: " + nombreArchivo);
-
-        } catch (IOException e) {
-            System.err.println("❌ Error al generar archivo de estadísticas: " + e.getMessage());
-            e.printStackTrace();
-        }
+        Estadisticas.generarArchivoEstadisticas(
+                new ArrayList<>(procesos),
+                cpu,
+                memoria,
+                tiempoActual,
+                tiempoInicioSimulacion,
+                algoritmoUtilizado,
+                quantumUtilizado
+        );
     }
     private void escribirInformacionGeneral(FileWriter writer) throws IOException {
         LocalDateTime ahora = LocalDateTime.now();
@@ -1397,23 +1351,7 @@ public class HelloController implements Initializable {
     }
 
     private double calcularEficiencia() {
-        if (procesos.isEmpty() || tiempoActual == 0) {
-            return 0.0;
-        }
-
-        int procesosTerminados = (int) procesos.stream()
-                .filter(p -> p.getEstado() == EstadoProceso.TERMINADO)
-                .count();
-
-        int tiempoTotalCPU = procesos.stream()
-                .filter(p -> p.getEstado() == EstadoProceso.TERMINADO)
-                .mapToInt(Proceso::getDuracion)
-                .sum();
-
-        int tiempoTotalDisponible = tiempoActual * 5; 
-
-        return tiempoTotalDisponible > 0 ?
-                (double) tiempoTotalCPU / tiempoTotalDisponible * 100 : 0.0;
+        return Estadisticas.calcularEficiencia(new ArrayList<>(procesos), tiempoActual, 6);
     }
 
     private String truncarTexto(String texto, int longitud) {

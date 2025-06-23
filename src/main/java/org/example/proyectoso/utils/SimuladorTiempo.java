@@ -88,14 +88,6 @@ public class SimuladorTiempo {
     }
 
     
-    public static void avanzarTiempo(long milisegundos) {
-        tiempoActualSimulado += milisegundos;
-    }
-
-    
-    public static void reiniciar() {
-        iniciar();
-    }
 
     
     public static String formatearTiempo(long milisegundos) {
