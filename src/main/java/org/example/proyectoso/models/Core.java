@@ -223,35 +223,8 @@ public class Core {
         }
     }
 
-    public Proceso getProcesoActual() {
-        synchronized (lock) {
-            return procesoActual;
-        }
-    }
 
-    public int getQuantum() {
-        synchronized (lock) {
-            return quantum;
-        }
-    }
 
-    public int getProcesosEjecutados() {
-        synchronized (lock) {
-            return procesosEjecutados;
-        }
-    }
-
-    public long getTiempoTotalEjecucion() {
-        synchronized (lock) {
-            return tiempoTotalEjecucion;
-        }
-    }
-
-    public long getTiempoInactivo() {
-        synchronized (lock) {
-            return tiempoInactivo;
-        }
-    }
 
     public double getPorcentajeUso() {
         synchronized (lock) {

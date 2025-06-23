@@ -27,6 +27,15 @@ import javafx.scene.control.cell.PropertyValueFactory;
 import java.util.stream.Collectors;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.text.DecimalFormat;
+import java.util.Comparator;
+import java.util.stream.Collectors;
+
+
 
 public class HelloController implements Initializable {
 
@@ -73,6 +82,8 @@ public class HelloController implements Initializable {
     @FXML private TableColumn<FilaEstadoProcesos, String> colEspera;
     @FXML private TableColumn<FilaEstadoProcesos, String> colTerminado;
 
+
+
     // Sistema de procesamiento paralelo
     private CPU cpu;
     private ManejoProcesos manejoProcesos;
@@ -99,6 +110,11 @@ public class HelloController implements Initializable {
     private List<Proceso> procesosListo = new ArrayList<>();
     private List<Proceso> procesosEspera = new ArrayList<>();
     private List<Proceso> procesosTerminado = new ArrayList<>();
+
+    //estadisticas finales
+    private long tiempoInicioSimulacion;
+    private String algoritmoUtilizado;
+    private int quantumUtilizado;
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
@@ -213,7 +229,7 @@ public class HelloController implements Initializable {
 
     private void inicializarSistemaProcesamiento() {
         // Crear CPU con 5 cores (no 6)
-        cpu = new CPU(5);
+        cpu = new CPU(6);
 
         // Crear memoria de 2GB (2048 MB)
         memoria = new Memoria(2048);
@@ -256,7 +272,7 @@ public class HelloController implements Initializable {
 
     private void generarGanttVacio() {
         gridGantt.getChildren().clear();
-        int tiempoTotal = 200; // Cambiado de 100 a 200
+        int tiempoTotal = 1000; // Cambiado de 100 a 200
 
         celdasGantt = new Rectangle[6][tiempoTotal]; // 6 cores máximo
 
@@ -526,6 +542,13 @@ public class HelloController implements Initializable {
     private void ejecutarSimulacionParalela() {
         List<Proceso> listaProcesos = new ArrayList<>(procesos);
 
+        // ===== MODIFICACIÓN 1: AGREGAR ESTAS LÍNEAS =====
+        // Reiniciar tiempos de todos los procesos
+        for (Proceso p : listaProcesos) {
+            p.reiniciarTiempos();
+        }
+        // ===== FIN MODIFICACIÓN 1 =====
+
         // Asignar filas de visualización a procesos
         filaMapa.clear();
         nextFila = 0;
@@ -590,11 +613,16 @@ public class HelloController implements Initializable {
                                 tiempoRestanteProceso.get(p2)
                         ));
 
-                        for (int coreId = 0; coreId < 5 && !procesosListos.isEmpty(); coreId++) {
+                        for (int coreId = 0; coreId < 6 && !procesosListos.isEmpty(); coreId++) {
                             if (!procesosEnCores.containsKey(coreId)) {
                                 Proceso proceso = procesosListos.remove(0);
                                 procesosEnCores.put(coreId, proceso);
                                 actualizarEstadoProceso(proceso, EstadoProceso.EJECUTANDO);
+
+                                // ===== MODIFICACIÓN 2: AGREGAR ESTA LÍNEA =====
+                                proceso.marcarInicioEjecucion(tiempoActual);
+                                // ===== FIN MODIFICACIÓN 2 =====
+
                                 System.out.println("🔧 t=" + tiempoActual + ": Core-" + coreId + " ejecuta Proceso " + proceso.getId());
                             }
                         }
@@ -621,6 +649,11 @@ public class HelloController implements Initializable {
                         // Verificar si terminó
                         if (tiempoRestante <= 0) {
                             actualizarEstadoProceso(proceso, EstadoProceso.TERMINADO);
+
+                            // ===== MODIFICACIÓN 3: AGREGAR ESTA LÍNEA =====
+                            proceso.marcarFinalizacion(tiempoActual + 1);
+                            // ===== FIN MODIFICACIÓN 3 =====
+
                             coresALiberar.add(coreId);
 
                             // Liberar memoria del proceso terminado
@@ -650,19 +683,15 @@ public class HelloController implements Initializable {
             } finally {
                 Platform.runLater(() -> {
                     corriendo = false;
-                    actualizarTablaColas(); // Actualización final
+                    actualizarTablaColas();
                     System.out.println("🏁 Simulación terminada en t=" + tiempoActual);
+                    generarArchivoEstadisticas();
                 });
             }
         });
 
         simulacionThread.setDaemon(true);
         simulacionThread.start();
-    }
-
-    // Métodos simplificados - ya no necesarios con la nueva implementación
-    private boolean tieneProcesosPendientes() {
-        return false; // Manejado dentro de ejecutarSimulacionParalela
     }
 
     @FXML
@@ -685,6 +714,11 @@ public class HelloController implements Initializable {
             alert.showAndWait();
             return;
         }
+        tiempoInicioSimulacion = System.currentTimeMillis();
+        algoritmoUtilizado = comboAlgoritmo.getValue();
+        quantumUtilizado = "Round Robin".equals(algoritmoUtilizado) ?
+                Integer.parseInt(txtQuantum.getText().isEmpty() ? "100" : txtQuantum.getText()) : 0;
+
 
         // Configurar velocidad de simulación (solo para Round Robin, para SJF usar default)
         if ("Round Robin".equals(comboAlgoritmo.getValue())) {
@@ -1010,5 +1044,410 @@ public class HelloController implements Initializable {
 
         return stats.toString();
     }
+    private void generarArchivoEstadisticas() {
+        try {
+            // Crear nombre de archivo con timestamp
+            LocalDateTime ahora = LocalDateTime.now();
+            DateTimeFormatter formato = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss");
+            String nombreArchivo = "estadisticas_simulacion_" + formato.format(ahora) + ".txt";
+
+            // Crear archivo
+            FileWriter writer = new FileWriter(nombreArchivo);
+
+            // Escribir encabezado
+            writer.write("=" .repeat(80) + "\n");
+            writer.write("           REPORTE DE ESTADÍSTICAS DE SIMULACIÓN\n");
+            writer.write("=" .repeat(80) + "\n\n");
+
+            // Información general
+            escribirInformacionGeneral(writer);
+
+            // Estadísticas por proceso
+            escribirEstadisticasPorProceso(writer);
+
+            // Estadísticas de rendimiento
+            escribirEstadisticasRendimiento(writer);
+
+            // Estadísticas de memoria
+            escribirEstadisticasMemoria(writer);
+
+            // Estadísticas de CPU
+            escribirEstadisticasCPU(writer);
+
+            // Resumen final
+            escribirResumenFinal(writer);
+
+            writer.close();
+
+            System.out.println("📄 Archivo de estadísticas generado: " + nombreArchivo);
+
+        } catch (IOException e) {
+            System.err.println("❌ Error al generar archivo de estadísticas: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+    private void escribirInformacionGeneral(FileWriter writer) throws IOException {
+        LocalDateTime ahora = LocalDateTime.now();
+        DateTimeFormatter formatoCompleto = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
+
+        writer.write("INFORMACIÓN GENERAL\n");
+        writer.write("-".repeat(50) + "\n");
+        writer.write("Fecha y hora: " + formatoCompleto.format(ahora) + "\n");
+        writer.write("Algoritmo utilizado: " + algoritmoUtilizado + "\n");
+
+        if ("Round Robin".equals(algoritmoUtilizado)) {
+            writer.write("Quantum: " + quantumUtilizado + " ms\n");
+        }
+
+        writer.write("Tiempo total de simulación: " + tiempoActual + " unidades\n");
+        writer.write("Duración real: " + calcularDuracionReal() + "\n");
+        writer.write("Total de procesos: " + procesos.size() + "\n");
+        writer.write("Cores utilizados: 5\n");
+
+        if (memoria != null) {
+            writer.write("Memoria total: " + memoria.getTamañoTotal() + " MB\n");
+        }
+
+        writer.write("\n");
+    }
+    private void escribirEstadisticasPorProceso(FileWriter writer) throws IOException {
+        writer.write("ESTADÍSTICAS POR PROCESO\n");
+        writer.write("-".repeat(50) + "\n");
+        writer.write(String.format("%-4s %-20s %-8s %-8s %-8s %-10s %-10s %-10s %-10s %-8s\n",
+                "ID", "Nombre", "Llegada", "Burst", "Memoria", "T.Inicio", "T.Fin", "T.Espera", "T.Retorno", "Estado"));
+        writer.write("-".repeat(110) + "\n");
+
+        for (Proceso proceso : procesos) {
+            writer.write(String.format("%-4d %-20s %-8d %-8d %-8d %-10d %-10d %-10d %-10d %-8s\n",
+                    proceso.getId(),
+                    truncarTexto(proceso.getNombre(), 20),
+                    proceso.getTiempoLlegada(),
+                    proceso.getDuracion(),
+                    proceso.getTamanoMemoria(),
+                    proceso.getTiempoInicioReal(), // NUEVO
+                    proceso.getTiempoFinalizacionReal(), // NUEVO
+                    proceso.getTiempoEspera(),
+                    proceso.getTiempoRetorno(),
+                    proceso.getEstado().toString()));
+        }
+
+        // AGREGAR SECCIÓN DE VERIFICACIÓN SJF:
+        writer.write("\nVERIFICACIÓN DEL ALGORITMO SJF\n");
+        writer.write("-".repeat(50) + "\n");
+        verificarSJF(writer);
+        writer.write("\n");
+    }
+
+    private void verificarSJF(FileWriter writer) throws IOException {
+        // Agrupar procesos por tiempo de llegada
+        Map<Integer, List<Proceso>> procesosPorLlegada = procesos.stream()
+                .filter(p -> p.getEstado() == EstadoProceso.TERMINADO)
+                .collect(Collectors.groupingBy(Proceso::getTiempoLlegada));
+
+        writer.write("Análisis del orden de ejecución por SJF:\n\n");
+
+        for (Map.Entry<Integer, List<Proceso>> entry : procesosPorLlegada.entrySet()) {
+            int tiempoLlegada = entry.getKey();
+            List<Proceso> procesosGrupo = entry.getValue();
+
+            if (procesosGrupo.size() > 1) {
+                writer.write("Procesos que llegaron en t=" + tiempoLlegada + ":\n");
+
+                // Ordenar por burst time (como debería hacer SJF)
+                List<Proceso> ordenSJF = procesosGrupo.stream()
+                        .sorted(Comparator.comparingInt(Proceso::getDuracion))
+                        .collect(Collectors.toList());
+
+                // Ordenar por tiempo de inicio real (como realmente ejecutó)
+                List<Proceso> ordenReal = procesosGrupo.stream()
+                        .sorted(Comparator.comparingInt(Proceso::getTiempoInicioReal))
+                        .collect(Collectors.toList());
+
+                writer.write("  Orden esperado (SJF): ");
+                for (int i = 0; i < ordenSJF.size(); i++) {
+                    writer.write("P" + ordenSJF.get(i).getId() + "(burst=" + ordenSJF.get(i).getDuracion() + ")");
+                    if (i < ordenSJF.size() - 1) writer.write(" → ");
+                }
+                writer.write("\n");
+
+                writer.write("  Orden real ejecutado: ");
+                for (int i = 0; i < ordenReal.size(); i++) {
+                    writer.write("P" + ordenReal.get(i).getId() + "(inicio=" + ordenReal.get(i).getTiempoInicioReal() + ")");
+                    if (i < ordenReal.size() - 1) writer.write(" → ");
+                }
+                writer.write("\n");
+
+                // Verificar si coinciden
+                boolean sjfCorrecto = true;
+                for (int i = 0; i < Math.min(ordenSJF.size(), ordenReal.size()); i++) {
+                    if (ordenSJF.get(i).getId() != ordenReal.get(i).getId()) {
+                        sjfCorrecto = false;
+                        break;
+                    }
+                }
+
+                writer.write("  ✓ SJF implementado correctamente: " + (sjfCorrecto ? "SÍ" : "NO") + "\n\n");
+            }
+        }
+
+        // Análisis de procesos individuales que llegaron en diferentes momentos
+        writer.write("Procesos que llegaron individualmente:\n");
+        for (Proceso proceso : procesos.stream()
+                .filter(p -> p.getEstado() == EstadoProceso.TERMINADO)
+                .sorted(Comparator.comparingInt(Proceso::getTiempoLlegada))
+                .collect(Collectors.toList())) {
+
+            long procesosEnMismoTiempo = procesos.stream()
+                    .filter(p -> p.getTiempoLlegada() == proceso.getTiempoLlegada())
+                    .count();
+
+            if (procesosEnMismoTiempo == 1) {
+                writer.write("  P" + proceso.getId() + " (llegada=" + proceso.getTiempoLlegada() +
+                        ", burst=" + proceso.getDuracion() +
+                        ", inicio=" + proceso.getTiempoInicioReal() +
+                        ", espera=" + proceso.getTiempoEspera() + ")\n");
+            }
+        }
+    }
+    private void escribirEstadisticasRendimiento(FileWriter writer) throws IOException {
+        DecimalFormat df = new DecimalFormat("#.##");
+
+        // Calcular promedios
+        double promedioEspera = procesos.stream()
+                .filter(p -> p.getEstado() == EstadoProceso.TERMINADO)
+                .mapToInt(Proceso::getTiempoEspera)
+                .average()
+                .orElse(0.0);
+
+        double promedioRespuesta = procesos.stream()
+                .filter(p -> p.getEstado() == EstadoProceso.TERMINADO)
+                .mapToInt(Proceso::getTiempoRespuesta)
+                .average()
+                .orElse(0.0);
+
+        double promedioRetorno = procesos.stream()
+                .filter(p -> p.getEstado() == EstadoProceso.TERMINADO)
+                .mapToInt(Proceso::getTiempoRetorno)
+                .average()
+                .orElse(0.0);
+
+        int procesosTerminados = (int) procesos.stream()
+                .filter(p -> p.getEstado() == EstadoProceso.TERMINADO)
+                .count();
+
+        double throughput = procesosTerminados > 0 ? (double) procesosTerminados / tiempoActual : 0.0;
+
+        writer.write("ESTADÍSTICAS DE RENDIMIENTO\n");
+        writer.write("-".repeat(50) + "\n");
+        writer.write("Procesos completados: " + procesosTerminados + " / " + procesos.size() + "\n");
+        writer.write("Porcentaje completado: " + df.format((double) procesosTerminados / procesos.size() * 100) + "%\n");
+        writer.write("Tiempo promedio de espera: " + df.format(promedioEspera) + " unidades\n");
+        writer.write("Tiempo promedio de respuesta: " + df.format(promedioRespuesta) + " unidades\n");
+        writer.write("Tiempo promedio de retorno: " + df.format(promedioRetorno) + " unidades\n");
+        writer.write("Throughput: " + df.format(throughput) + " procesos/unidad tiempo\n");
+        writer.write("Eficiencia del sistema: " + df.format(calcularEficiencia()) + "%\n");
+        writer.write("\n");
+    }
+    private void escribirEstadisticasMemoria(FileWriter writer) throws IOException {
+        if (memoria == null) {
+            writer.write("ESTADÍSTICAS DE MEMORIA\n");
+            writer.write("-".repeat(50) + "\n");
+            writer.write("Sistema de memoria no disponible\n\n");
+            return;
+        }
+
+        DecimalFormat df = new DecimalFormat("#.##");
+
+        writer.write("ESTADÍSTICAS DE MEMORIA\n");
+        writer.write("-".repeat(50) + "\n");
+        writer.write("Memoria total: " + memoria.getTamañoTotal() + " MB\n");
+        writer.write("Memoria usada: " + memoria.getMemoriaUsada() + " MB\n");
+        writer.write("Memoria libre: " + memoria.getMemoriaLibre() + " MB\n");
+        writer.write("Porcentaje de uso: " + df.format(memoria.getPorcentajeUso()) + "%\n");
+
+        if (memoria.getSwapping() != null) {
+            writer.write("Procesos en swap: " + memoria.getSwapping().getCantidadProcesos() + "\n");
+            writer.write("Memoria en swap: " + memoria.getSwapping().getMemoriaRequerida() + " MB\n");
+        }
+
+        // Fragmentación
+        int bloquesLibres = (int) memoria.getBloques().stream()
+                .filter(bloque -> !bloque.isOcupado())
+                .count();
+        writer.write("Bloques libres: " + bloquesLibres + "\n");
+        writer.write("Fragmentación: " + (bloquesLibres > 1 ? "SÍ" : "NO") + "\n");
+        writer.write("\n");
+    }
+
+    private void escribirEstadisticasCPU(FileWriter writer) throws IOException {
+        if (cpu == null) {
+            writer.write("ESTADÍSTICAS DE CPU\n");
+            writer.write("-".repeat(50) + "\n");
+            writer.write("Sistema de CPU no disponible\n\n");
+            return;
+        }
+
+        DecimalFormat df = new DecimalFormat("#.##");
+
+        writer.write("ESTADÍSTICAS DE CPU\n");
+        writer.write("-".repeat(50) + "\n");
+        writer.write("Número de cores: " + cpu.getNumeroCores() + "\n");
+        writer.write("Cores libres: " + cpu.getCoresLibresCount() + "\n");
+        writer.write("Cores ocupados: " + cpu.getCoresOcupadosCount() + "\n");
+        writer.write("Uso promedio de CPU: " + df.format(cpu.getUsoPromedioCpu()) + "%\n");
+        writer.write("Procesos ejecutados: " + cpu.getProcesosTotalesEjecutados() + "\n");
+
+        // Estadísticas por core
+        writer.write("\nEstado por core:\n");
+        for (int i = 0; i < cpu.getNumeroCores(); i++) {
+            Core core = cpu.getCore(i);
+            if (core != null) {
+                writer.write("  Core " + i + ": " +
+                        (core.isLibre() ? "LIBRE" : "OCUPADO") +
+                        " - Uso: " + df.format(core.getPorcentajeUso()) + "%\n");
+            }
+        }
+        writer.write("\n");
+    }
+
+    private void escribirResumenFinal(FileWriter writer) throws IOException {
+        DecimalFormat df = new DecimalFormat("#.##");
+
+        writer.write("RESUMEN FINAL Y ANÁLISIS\n");
+        writer.write("-".repeat(50) + "\n");
+
+        // Proceso más rápido y más lento
+        Proceso procesoMasRapido = procesos.stream()
+                .filter(p -> p.getEstado() == EstadoProceso.TERMINADO)
+                .min((p1, p2) -> Integer.compare(p1.getTiempoRetorno(), p2.getTiempoRetorno()))
+                .orElse(null);
+
+        Proceso procesoMasLento = procesos.stream()
+                .filter(p -> p.getEstado() == EstadoProceso.TERMINADO)
+                .max((p1, p2) -> Integer.compare(p1.getTiempoRetorno(), p2.getTiempoRetorno()))
+                .orElse(null);
+
+        if (procesoMasRapido != null) {
+            writer.write("Proceso más rápido: P" + procesoMasRapido.getId() +
+                    " (" + procesoMasRapido.getNombre() + ") - " +
+                    procesoMasRapido.getTiempoRetorno() + " unidades\n");
+        }
+
+        if (procesoMasLento != null) {
+            writer.write("Proceso más lento: P" + procesoMasLento.getId() +
+                    " (" + procesoMasLento.getNombre() + ") - " +
+                    procesoMasLento.getTiempoRetorno() + " unidades\n");
+        }
+
+        // AGREGAR VERIFICACIÓN ESPECÍFICA DE SJF:
+        writer.write("\nANÁLISIS DEL ALGORITMO SJF:\n");
+
+        // Calcular si SJF minimizó efectivamente el tiempo de espera
+        double tiempoEsperaPromedio = procesos.stream()
+                .filter(p -> p.getEstado() == EstadoProceso.TERMINADO)
+                .mapToInt(Proceso::getTiempoEspera)
+                .average()
+                .orElse(0.0);
+
+        writer.write("Tiempo de espera promedio: " + df.format(tiempoEsperaPromedio) + " unidades\n");
+
+        // Verificar principio de SJF
+        long procesosConEspera = procesos.stream()
+                .filter(p -> p.getEstado() == EstadoProceso.TERMINADO)
+                .filter(p -> p.getTiempoEspera() > 0)
+                .count();
+
+        writer.write("Procesos que tuvieron que esperar: " + procesosConEspera + "\n");
+        writer.write("Eficiencia del algoritmo " + algoritmoUtilizado + ": " +
+                df.format(calcularEficiencia()) + "%\n");
+
+        // Recomendaciones específicas para SJF
+        writer.write("\nRECOMENDACIONES ESPECÍFICAS PARA SJF:\n");
+        if (tiempoEsperaPromedio < 10) {
+            writer.write("✓ SJF está funcionando eficientemente - bajo tiempo de espera promedio.\n");
+        }
+        if (procesosConEspera > 0) {
+            writer.write("- " + procesosConEspera + " procesos experimentaron espera debido a llegadas tardías.\n");
+        }
+
+        generarRecomendaciones(writer);
+
+        writer.write("\n" + "=".repeat(80) + "\n");
+        writer.write("Fin del reporte - Generado automáticamente por el Simulador de SO\n");
+        writer.write("=".repeat(80) + "\n");
+    }
+
+    private void generarRecomendaciones(FileWriter writer) throws IOException {
+        double promedioEspera = procesos.stream()
+                .filter(p -> p.getEstado() == EstadoProceso.TERMINADO)
+                .mapToInt(Proceso::getTiempoEspera)
+                .average()
+                .orElse(0.0);
+
+        if (promedioEspera > 50) {
+            writer.write("- El tiempo de espera promedio es alto. Considere optimizar el algoritmo de planificación.\n");
+        }
+
+        if (memoria != null && memoria.getPorcentajeUso() > 90) {
+            writer.write("- Alto uso de memoria detectado. Considere aumentar la RAM del sistema.\n");
+        }
+
+        if (cpu != null && cpu.getUsoPromedioCpu() < 50) {
+            writer.write("- Bajo uso de CPU. El sistema tiene capacidad para más procesos.\n");
+        }
+
+        int procesosNoCompletados = (int) procesos.stream()
+                .filter(p -> p.getEstado() != EstadoProceso.TERMINADO)
+                .count();
+
+        if (procesosNoCompletados > 0) {
+            writer.write("- " + procesosNoCompletados + " proceso(s) no completado(s). Considere aumentar el tiempo de simulación.\n");
+        }
+
+        if ("SJF".equals(algoritmoUtilizado)) {
+            writer.write("- SJF es eficiente para minimizar tiempo de espera promedio.\n");
+        } else if ("Round Robin".equals(algoritmoUtilizado)) {
+            writer.write("- Round Robin proporciona buena respuesta interactiva.\n");
+            if (quantumUtilizado < 50) {
+                writer.write("- Quantum bajo puede causar muchos cambios de contexto.\n");
+            }
+        }
+    }
+    private String calcularDuracionReal() {
+        if (tiempoInicioSimulacion > 0) {
+            long duracionMs = System.currentTimeMillis() - tiempoInicioSimulacion;
+            return String.format("%.2f segundos", duracionMs / 1000.0);
+        }
+        return "No disponible";
+    }
+
+    private double calcularEficiencia() {
+        if (procesos.isEmpty() || tiempoActual == 0) {
+            return 0.0;
+        }
+
+        int procesosTerminados = (int) procesos.stream()
+                .filter(p -> p.getEstado() == EstadoProceso.TERMINADO)
+                .count();
+
+        int tiempoTotalCPU = procesos.stream()
+                .filter(p -> p.getEstado() == EstadoProceso.TERMINADO)
+                .mapToInt(Proceso::getDuracion)
+                .sum();
+
+        int tiempoTotalDisponible = tiempoActual * 5; // 5 cores
+
+        return tiempoTotalDisponible > 0 ?
+                (double) tiempoTotalCPU / tiempoTotalDisponible * 100 : 0.0;
+    }
+
+    private String truncarTexto(String texto, int longitud) {
+        if (texto == null) return "";
+        return texto.length() > longitud ?
+                texto.substring(0, longitud - 3) + "..." : texto;
+    }
+
+
+
 
 }
