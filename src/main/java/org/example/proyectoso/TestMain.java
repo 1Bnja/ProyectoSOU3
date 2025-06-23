@@ -10,13 +10,13 @@ import java.util.List;
 import java.util.Scanner;
 
 public class TestMain {
-    /** Delay usado al asignar memoria en la simulación */
+
     private static long STEP_DELAY_MS = 200;
 
     public static void main(String[] args) {
         System.out.println("=== PRUEBA DE ALGORITMOS DE PLANIFICACIÓN CON ESTADÍSTICAS Y SIMULACIÓN ===\n");
 
-        // Configurar STEP_DELAY_MS vía argumento opcional
+        
         if (args.length > 0) {
             try {
                 long v = Long.parseLong(args[0]);
@@ -30,13 +30,13 @@ public class TestMain {
         String algoritmo;
         int rrQuantum = 100;
 
-        // Selección interactiva de algoritmo
+        
         do {
             System.out.print("Seleccione algoritmo ('sjf' o 'rr'): ");
             algoritmo = scanner.nextLine().trim().toLowerCase();
         } while (!algoritmo.equals("sjf") && !algoritmo.equals("rr"));
 
-        // Si Round Robin, solicitar quantum
+        
         if ("rr".equals(algoritmo)) {
             System.out.print("Ingrese quantum en ms (por defecto 100): ");
             String qStr = scanner.nextLine().trim();
@@ -47,7 +47,7 @@ public class TestMain {
         }
 
         try {
-            // Iniciar simulador de tiempo y estadísticas
+            
             SimuladorTiempo.iniciar();
             System.out.println("⏱️ Simulador de tiempo iniciado: " +
                     SimuladorTiempo.formatearTiempo(SimuladorTiempo.getTiempoActual()));
@@ -56,14 +56,14 @@ public class TestMain {
             estadisticas.iniciar();
             System.out.println("📊 Estadísticas iniciadas\n");
 
-            // 1. Crear CPU y Memoria
+            
             CPU cpu = new CPU(2);
             System.out.println("✅ CPU creada: " + cpu.getNombre());
 
             Memoria memoria = new Memoria(1024);
             System.out.println("✅ Memoria creada: " + memoria.getTamañoTotal() + "MB\n");
 
-            // 2. Crear y asignar procesos
+            
             List<Proceso> procesos = crearProcesosDePrueba();
             List<Proceso> procesosListos = new ArrayList<>();
 
@@ -88,7 +88,7 @@ public class TestMain {
             }
             memoria.imprimirEstado();
 
-            // 3. Configurar planificador según elección
+            
             Planificacion plan;
             if ("rr".equals(algoritmo)) {
                 System.out.println("\n--- CONFIGURANDO ROUND ROBIN (quantum=" + rrQuantum + "ms) ---");
@@ -104,7 +104,7 @@ public class TestMain {
 
             System.out.println("✅ Planificador seleccionado: " + plan.getNombreAlgoritmo());
 
-            // Orden de ejecución esperado
+            
             System.out.println("\n--- ORDEN ESPERADO DE EJECUCIÓN ---");
             String finalAlgoritmo = algoritmo;
             procesosListos.sort((p1, p2) -> {
@@ -122,13 +122,13 @@ public class TestMain {
                                 "Duración:" + p.getDuracion()) + "ms");
             }
 
-            // 4. Ejecutar planificador
+            
             if (!procesosListos.isEmpty()) {
                 System.out.println("\n--- INICIANDO EJECUCIÓN: " + plan.getNombreAlgoritmo() + " ---");
                 SimuladorTiempo.setFactorVelocidad(3.0);
                 plan.ejecutarProcesos(procesosListos);
 
-                // Simulación de progreso
+                
                 for (int i = 0; i < 5; i++) {
                     Thread.sleep(500);
                     System.out.println("Progreso tiempo: " +
@@ -145,7 +145,7 @@ public class TestMain {
                 System.out.println("⚠️ No hay procesos listos para ejecutar");
             }
 
-            // 5. Mostrar resultados y liberar recursos
+            
             System.out.println("\n--- RESULTADOS DE EJECUCIÓN ---");
             System.out.println(plan.getEstadisticas());
             System.out.println(cpu.getEstadoActual());

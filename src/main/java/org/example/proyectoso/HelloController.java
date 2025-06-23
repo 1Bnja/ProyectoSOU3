@@ -69,13 +69,13 @@ public class HelloController implements Initializable {
     @FXML private AnchorPane ramContainer;
     @FXML private AnchorPane discoContainer;
 
-    // Lista observable de procesos y colores disponibles
+    
     private ObservableList<Proceso> procesos;
     private final List<Color> coloresDisponibles = new ArrayList<>(Arrays.asList(
             Color.RED, Color.BLUE, Color.GREEN, Color.ORANGE, Color.PURPLE
     ));
 
-    // Tabla de colas de procesos
+    
     @FXML private TableView<FilaEstadoProcesos> tablaColas;
     @FXML private TableColumn<FilaEstadoProcesos, String> colNuevo;
     @FXML private TableColumn<FilaEstadoProcesos, String> colListo;
@@ -84,15 +84,15 @@ public class HelloController implements Initializable {
 
 
 
-    // Sistema de procesamiento paralelo
+    
     private CPU cpu;
     private ManejoProcesos manejoProcesos;
     private Planificacion planificador;
 
-    // Sistema de memoria
+    
     private Memoria memoria;
 
-    // Control de simulación
+    
     private ScheduledExecutorService scheduledExecutor;
     private volatile boolean corriendo = false;
     private volatile boolean pausado = false;
@@ -102,7 +102,7 @@ public class HelloController implements Initializable {
     private Map<Proceso, Integer> filaMapa = new HashMap<>();
     private int nextFila = 0;
 
-    /** Delay between simulation steps in milliseconds */
+    
     private static long STEP_DELAY_MS = 200;
 
     private ObservableList<FilaEstadoProcesos> datosTablaEstados;
@@ -111,14 +111,14 @@ public class HelloController implements Initializable {
     private List<Proceso> procesosEspera = new ArrayList<>();
     private List<Proceso> procesosTerminado = new ArrayList<>();
 
-    //estadisticas finales
+    
     private long tiempoInicioSimulacion;
     private String algoritmoUtilizado;
     private int quantumUtilizado;
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
-        // Setup ComboBox
+        
         comboAlgoritmo.getItems().addAll("SJF", "Round Robin");
         comboAlgoritmo.setValue("SJF");
 
@@ -126,24 +126,24 @@ public class HelloController implements Initializable {
             String seleccionado = comboAlgoritmo.getValue();
             System.out.println("Algoritmo seleccionado: " + seleccionado);
 
-            // Mostrar/ocultar campos según el algoritmo
+            
             actualizarVisibilidadCampos(seleccionado);
         });
 
-        // Inicializar visibilidad de campos (empezar con SJF)
+        
         actualizarVisibilidadCampos("SJF");
 
-        // Configurar columnas usando propiedades del Proceso
+        
         colProceso.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(data.getValue().getNombre()));
         colLlegada.setCellValueFactory(data -> new javafx.beans.property.SimpleIntegerProperty(data.getValue().getTiempoLlegada()).asObject());
         colBurst.setCellValueFactory(data -> new javafx.beans.property.SimpleIntegerProperty(data.getValue().getDuracion()).asObject());
         colMemoria.setCellValueFactory(data -> new javafx.beans.property.SimpleIntegerProperty(data.getValue().getTamanoMemoria()).asObject());
 
-        // Lista de procesos
+        
         procesos = FXCollections.observableArrayList();
         tablaProcesos.setItems(procesos);
 
-        // Colorear filas según el color del proceso
+        
         tablaProcesos.setRowFactory(tv -> new TableRow<>() {
             @Override
             protected void updateItem(Proceso item, boolean empty) {
@@ -163,24 +163,22 @@ public class HelloController implements Initializable {
             }
         });
 
-        // Inicializar sistema de procesamiento
+        
         inicializarSistemaProcesamiento();
 
-        // Crear procesos predefinidos
+        
         crearProcesosPredefinidos();
 
         generarGanttVacio();
         poblarMemorias();
         poblarMemorias();
-        inicializarTablaColas(); // AGREGAR ESTA LÍNEA
+        inicializarTablaColas(); 
 
     }
 
-    /**
-     * Crea los 5 procesos predefinidos que ocupan exactamente 2048MB de RAM
-     */
+    
     private void crearProcesosPredefinidos() {
-        // Nombres predefinidos
+        
         String[] nombres = {
                 "tralalero tralala",
                 "tung tung sahur",
@@ -189,16 +187,16 @@ public class HelloController implements Initializable {
                 "br br patatim"
         };
 
-        // Tiempos de llegada predefinidos
+        
         int[] tiemposLlegada = {1, 2, 6, 10, 15};
 
-        // CPU bursts fijos (entre 10 y 90)
+        
         int[] cpuBursts = {45, 67, 23, 81, 34};
 
-        // Tamaños de memoria fijos que suman exactamente 2048MB
-        int[] tamañosMemoria = {412, 523, 367, 448, 298}; // Total: 2048MB
+        
+        int[] tamañosMemoria = {412, 523, 367, 448, 298}; 
 
-        // Crear los procesos
+        
         for (int i = 0; i < 5; i++) {
             Proceso proceso = new Proceso(
                     nombres[i],
@@ -207,7 +205,7 @@ public class HelloController implements Initializable {
                     tiemposLlegada[i]
             );
 
-            // Asignar color
+            
             if (!coloresDisponibles.isEmpty()) {
                 Color color = coloresDisponibles.remove(0);
                 proceso.setColor(color);
@@ -228,19 +226,19 @@ public class HelloController implements Initializable {
 
 
     private void inicializarSistemaProcesamiento() {
-        // Crear CPU con 5 cores (no 6)
+        
         cpu = new CPU(6);
 
-        // Crear memoria de 2GB (2048 MB)
+        
         memoria = new Memoria(2048);
 
-        // Crear manejador de procesos
+        
         manejoProcesos = new ManejoProcesos();
 
-        // Configurar planificador inicial
+        
         configurarPlanificador();
 
-        // Crear executor para actualizaciones de interfaz
+        
         scheduledExecutor = Executors.newScheduledThreadPool(2);
 
         System.out.println("🔧 Sistema de procesamiento inicializado (5 cores)");
@@ -261,7 +259,7 @@ public class HelloController implements Initializable {
                     cpu.setQuantumRoundRobin(quantum);
                     System.out.println("⚙️ Round Robin configurado con quantum: " + quantum + "ms");
                 } catch (Exception e) {
-                    cpu.setQuantumRoundRobin(100); // Quantum por defecto
+                    cpu.setQuantumRoundRobin(100); 
                     System.out.println("⚙️ Round Robin configurado con quantum por defecto: 100ms");
                 }
                 break;
@@ -272,9 +270,9 @@ public class HelloController implements Initializable {
 
     private void generarGanttVacio() {
         gridGantt.getChildren().clear();
-        int tiempoTotal = 1000; // Cambiado de 100 a 200
+        int tiempoTotal = 1000; 
 
-        celdasGantt = new Rectangle[6][tiempoTotal]; // 6 cores máximo
+        celdasGantt = new Rectangle[6][tiempoTotal]; 
 
         for (int t = 0; t < tiempoTotal; t++) {
             Label tiempoLabel = new Label("t" + t);
@@ -284,7 +282,7 @@ public class HelloController implements Initializable {
         }
 
         for (int core = 0; core < 6; core++) {
-            // Agregar etiqueta de core
+            
             Label coreLabel = new Label("C" + core);
             coreLabel.setPrefSize(30, 30);
             coreLabel.setStyle("-fx-border-color: gray; -fx-alignment: center; -fx-background-color: lightgray;");
@@ -304,27 +302,25 @@ public class HelloController implements Initializable {
         ramContainer.getChildren().clear();
         discoContainer.getChildren().clear();
 
-        // Inicializar visualización de memoria
+        
         actualizarVisualizacionMemoria();
 
         System.out.println("Contenedores de memoria inicializados");
     }
 
-    /**
-     * Actualiza la visibilidad de los campos según el algoritmo seleccionado
-     */
+    
     private void actualizarVisibilidadCampos(String algoritmo) {
         boolean esRoundRobin = "Round Robin".equals(algoritmo);
 
-        // Mostrar/ocultar campos de Quantum y Tiempo solo para Round Robin
+        
         txtQuantum.setVisible(esRoundRobin);
         txtTime.setVisible(esRoundRobin);
 
-        // También ocultar/mostrar las etiquetas (necesitaremos encontrarlas)
+        
         ocultarEtiquetasCampos(!esRoundRobin);
 
         if (esRoundRobin) {
-            // Establecer valores por defecto para Round Robin
+            
             if (txtQuantum.getText().isEmpty()) {
                 txtQuantum.setText("100");
             }
@@ -337,11 +333,9 @@ public class HelloController implements Initializable {
         }
     }
 
-    /**
-     * Oculta/muestra las etiquetas de los campos
-     */
+    
     private void ocultarEtiquetasCampos(boolean ocultar) {
-        // Buscar las etiquetas en el contenedor padre
+        
         if (txtQuantum.getParent() instanceof HBox) {
             HBox contenedor = (HBox) txtQuantum.getParent();
 
@@ -350,15 +344,15 @@ public class HelloController implements Initializable {
                     Label etiqueta = (Label) nodo;
                     String texto = etiqueta.getText();
 
-                    // Ocultar etiquetas "Quantum:" y "t ="
+                    
                     if ("Quantum:".equals(texto) || "t =".equals(texto)) {
                         etiqueta.setVisible(!ocultar);
-                        etiqueta.setManaged(!ocultar); // Para que no ocupe espacio cuando está oculto
+                        etiqueta.setManaged(!ocultar); 
                     }
                 }
             });
 
-            // Ocultar/mostrar los campos también con managed para que no ocupen espacio
+            
             txtQuantum.setManaged(!ocultar);
             txtTime.setManaged(!ocultar);
         }
@@ -370,15 +364,13 @@ public class HelloController implements Initializable {
         });
     }
 
-    /**
-     * Actualiza la visualización de la RAM
-     */
+    
     private void actualizarRAM() {
         ramContainer.getChildren().clear();
 
         if (memoria == null) return;
 
-        // Obtener bloques de memoria
+        
         List<org.example.proyectoso.memoria.BloqueMemoria> bloques = memoria.getBloques();
 
         double containerHeight = ramContainer.getPrefHeight();
@@ -388,32 +380,32 @@ public class HelloController implements Initializable {
         double yOffset = 0;
 
         for (org.example.proyectoso.memoria.BloqueMemoria bloque : bloques) {
-            // Calcular altura proporcional al tamaño del bloque
+            
             double alturaBloque = (double) bloque.getTamaño() / memoriaTotal * containerHeight;
 
-            // Crear rectángulo para el bloque que ocupe todo el ancho (agregando un poco más)
+            
             Rectangle rect = new Rectangle(containerWidth + 2, alturaBloque);
             rect.setX(-1);
             rect.setY(yOffset);
             rect.setStroke(Color.BLACK);
-            rect.setStrokeWidth(0.5); // Stroke más delgado
+            rect.setStrokeWidth(0.5); 
 
             if (bloque.isOcupado()) {
-                // Bloque ocupado - usar color del proceso
+                
                 Color colorProceso = bloque.getProceso().getColor();
                 rect.setFill(colorProceso != null ? colorProceso : Color.LIGHTBLUE);
 
-                // Agregar etiqueta con ID del proceso
+                
                 Label etiqueta = new Label("P" + bloque.getProceso().getId());
                 etiqueta.setLayoutX(containerWidth/2 - 10);
                 etiqueta.setLayoutY(yOffset + alturaBloque/2 - 8);
                 etiqueta.setStyle("-fx-font-size: 10px; -fx-font-weight: bold;");
                 ramContainer.getChildren().add(etiqueta);
             } else {
-                // Bloque libre
+                
                 rect.setFill(Color.LIGHTGRAY);
 
-                // Etiqueta "LIBRE" si el bloque es lo suficientemente grande
+                
                 if (alturaBloque > 20) {
                     Label etiqueta = new Label("LIBRE");
                     etiqueta.setLayoutX(containerWidth/2 - 15);
@@ -427,7 +419,7 @@ public class HelloController implements Initializable {
             yOffset += alturaBloque;
         }
 
-        // Mostrar estadísticas de RAM (ajustar posición)
+        
         Label statsRAM = new Label(String.format("RAM: %dMB / %dMB (%.1f%%)",
                 memoria.getMemoriaUsada(), memoria.getTamañoTotal(), memoria.getPorcentajeUso()));
         statsRAM.setLayoutX(5);
@@ -436,28 +428,26 @@ public class HelloController implements Initializable {
         ramContainer.getChildren().add(statsRAM);
     }
 
-    /**
-     * Actualiza la visualización del Swapping (Disco Duro)
-     */
+    
     private void actualizarSwapping() {
         discoContainer.getChildren().clear();
 
         if (memoria == null) return;
 
-        // Obtener procesos en swapping
+        
         List<Proceso> procesosSwap = memoria.getSwapping().getProcesosEnSwapping();
 
         double containerHeight = discoContainer.getPrefHeight();
         double containerWidth = discoContainer.getPrefWidth();
 
         if (procesosSwap.isEmpty()) {
-            // Disco vacío - llenar todo el contenedor (agregando un poco más)
+            
             Rectangle rectVacio = new Rectangle(containerWidth + 2, containerHeight - 25);
             rectVacio.setX(-1);
             rectVacio.setY(0);
             rectVacio.setFill(Color.WHITESMOKE);
             rectVacio.setStroke(Color.GRAY);
-            rectVacio.setStrokeWidth(0.5); // Stroke más delgado
+            rectVacio.setStrokeWidth(0.5); 
             discoContainer.getChildren().add(rectVacio);
 
             Label etiquetaVacio = new Label("DISCO VACÍO");
@@ -466,27 +456,27 @@ public class HelloController implements Initializable {
             etiquetaVacio.setStyle("-fx-font-size: 10px; -fx-text-fill: gray;");
             discoContainer.getChildren().add(etiquetaVacio);
         } else {
-            // Calcular memoria total en swapping
+            
             int memoriaSwapTotal = memoria.getSwapping().getMemoriaRequerida();
             double yOffset = 0;
             double alturaDisponible = containerHeight - 25;
 
             for (Proceso proceso : procesosSwap) {
-                // Calcular altura proporcional
+                
                 double alturaProceso = Math.max(20, (double) proceso.getTamanoMemoria() / memoriaSwapTotal * alturaDisponible);
 
-                // Crear rectángulo para el proceso que ocupe todo el ancho (agregando un poco más)
+                
                 Rectangle rect = new Rectangle(containerWidth + 2, alturaProceso);
                 rect.setX(-1);
                 rect.setY(yOffset);
                 rect.setStroke(Color.BLACK);
-                rect.setStrokeWidth(0.5); // Stroke más delgado
+                rect.setStrokeWidth(0.5); 
 
-                // Color del proceso
+                
                 Color colorProceso = proceso.getColor();
                 rect.setFill(colorProceso != null ? colorProceso.deriveColor(0, 1, 0.7, 1) : Color.LIGHTYELLOW);
 
-                // Etiqueta con ID del proceso (centrada)
+                
                 Label etiqueta = new Label("P" + proceso.getId() + " (" + proceso.getTamanoMemoria() + "MB)");
                 etiqueta.setLayoutX(containerWidth/2 - 40);
                 etiqueta.setLayoutY(yOffset + alturaProceso/2 - 8);
@@ -499,7 +489,7 @@ public class HelloController implements Initializable {
             }
         }
 
-        // Mostrar estadísticas de Swapping (ajustar posición)
+        
         Label statsSwap = new Label(String.format("Swap: %d procesos (%dMB)",
                 memoria.getSwapping().getCantidadProcesos(),
                 memoria.getSwapping().getMemoriaRequerida()));
@@ -536,20 +526,18 @@ public class HelloController implements Initializable {
         });
     }
 
-    /**
-     * Nueva simulación paralela - simulación por unidades de tiempo CPU Burst
-     */
+    
     private void ejecutarSimulacionParalela() {
         List<Proceso> listaProcesos = new ArrayList<>(procesos);
 
-        // ===== MODIFICACIÓN 1: AGREGAR ESTAS LÍNEAS =====
-        // Reiniciar tiempos de todos los procesos
+        
+        
         for (Proceso p : listaProcesos) {
             p.reiniciarTiempos();
         }
-        // ===== FIN MODIFICACIÓN 1 =====
+        
 
-        // Asignar filas de visualización a procesos
+        
         filaMapa.clear();
         nextFila = 0;
         for (Proceso p : listaProcesos) {
@@ -558,19 +546,19 @@ public class HelloController implements Initializable {
             }
         }
 
-        // Cola de procesos por estado
+        
         List<Proceso> procesosPendientes = new ArrayList<>(listaProcesos);
         List<Proceso> procesosListos = new ArrayList<>();
         Map<Integer, Proceso> procesosEnCores = new HashMap<>();
         Map<Proceso, Integer> tiempoRestanteProceso = new HashMap<>();
 
-        // Inicializar todos los procesos como NUEVO
+        
         for (Proceso p : listaProcesos) {
             actualizarEstadoProceso(p, EstadoProceso.NUEVO);
             tiempoRestanteProceso.put(p, p.getDuracion());
         }
 
-        // Actualizar tabla inicial
+        
         actualizarTablaColas();
 
         Platform.runLater(this::prepararGantt);
@@ -587,7 +575,7 @@ public class HelloController implements Initializable {
 
                     if (!corriendo) break;
 
-                    // 1. Verificar llegadas de procesos
+                    
                     procesosPendientes.removeIf(proceso -> {
                         if (proceso.getTiempoLlegada() <= tiempoActual) {
                             if (memoria.asignarMemoria(proceso)) {
@@ -606,7 +594,7 @@ public class HelloController implements Initializable {
                         return false;
                     });
 
-                    // 2. Asignar procesos a cores libres usando SJF
+                    
                     if (!procesosListos.isEmpty()) {
                         procesosListos.sort((p1, p2) -> Integer.compare(
                                 tiempoRestanteProceso.get(p1),
@@ -619,22 +607,22 @@ public class HelloController implements Initializable {
                                 procesosEnCores.put(coreId, proceso);
                                 actualizarEstadoProceso(proceso, EstadoProceso.EJECUTANDO);
 
-                                // ===== MODIFICACIÓN 2: AGREGAR ESTA LÍNEA =====
+                                
                                 proceso.marcarInicioEjecucion(tiempoActual);
-                                // ===== FIN MODIFICACIÓN 2 =====
+                                
 
                                 System.out.println("🔧 t=" + tiempoActual + ": Core-" + coreId + " ejecuta Proceso " + proceso.getId());
                             }
                         }
                     }
 
-                    // 3. Ejecutar procesos en cores por 1 unidad de tiempo
+                    
                     List<Integer> coresALiberar = new ArrayList<>();
                     for (Map.Entry<Integer, Proceso> entry : procesosEnCores.entrySet()) {
                         int coreId = entry.getKey();
                         Proceso proceso = entry.getValue();
 
-                        // Visualizar en Gantt
+                        
                         final int finalTiempo = tiempoActual;
                         final int finalCore = coreId;
                         Platform.runLater(() -> {
@@ -642,21 +630,21 @@ public class HelloController implements Initializable {
                             pintarCeldaCore(finalCore, finalTiempo, color);
                         });
 
-                        // Reducir tiempo restante
+                        
                         int tiempoRestante = tiempoRestanteProceso.get(proceso) - 1;
                         tiempoRestanteProceso.put(proceso, tiempoRestante);
 
-                        // Verificar si terminó
+                        
                         if (tiempoRestante <= 0) {
                             actualizarEstadoProceso(proceso, EstadoProceso.TERMINADO);
 
-                            // ===== MODIFICACIÓN 3: AGREGAR ESTA LÍNEA =====
+                            
                             proceso.marcarFinalizacion(tiempoActual + 1);
-                            // ===== FIN MODIFICACIÓN 3 =====
+                            
 
                             coresALiberar.add(coreId);
 
-                            // Liberar memoria del proceso terminado
+                            
                             memoria.liberarMemoria(proceso);
 
                             System.out.println("✅ t=" + tiempoActual + ": Proceso " + proceso.getId() + " terminado en Core-" + coreId);
@@ -665,15 +653,15 @@ public class HelloController implements Initializable {
                         }
                     }
 
-                    // 4. Liberar cores de procesos terminados
+                    
                     for (Integer coreId : coresALiberar) {
                         procesosEnCores.remove(coreId);
                     }
 
-                    // 5. Actualizar tabla de colas cada ciclo
+                    
                     actualizarTablaColas();
 
-                    // 6. Avanzar tiempo y esperar
+                    
                     tiempoActual++;
                     Thread.sleep(STEP_DELAY_MS);
                 }
@@ -720,7 +708,7 @@ public class HelloController implements Initializable {
                 Integer.parseInt(txtQuantum.getText().isEmpty() ? "100" : txtQuantum.getText()) : 0;
 
 
-        // Configurar velocidad de simulación (solo para Round Robin, para SJF usar default)
+        
         if ("Round Robin".equals(comboAlgoritmo.getValue())) {
             try {
                 long v = Long.parseLong(txtTime.getText());
@@ -728,23 +716,23 @@ public class HelloController implements Initializable {
                     STEP_DELAY_MS = v;
                 }
             } catch (Exception ignored) {
-                STEP_DELAY_MS = 500; // Default para Round Robin
+                STEP_DELAY_MS = 500; 
             }
         } else {
-            STEP_DELAY_MS = 200; // Default para SJF (más rápido)
+            STEP_DELAY_MS = 200; 
         }
 
         corriendo = true;
         pausado = false;
         tiempoActual = 0;
 
-        // Reiniciar sistema (simplificado)
+        
         tiempoActual = 0;
 
-        // Limpiar visualización
+        
         Platform.runLater(this::prepararGantt);
 
-        // Iniciar simulación paralela
+        
         ejecutarSimulacionParalela();
 
         System.out.println("🚀 Simulación paralela iniciada con " + procesos.size() + " procesos");
@@ -791,7 +779,7 @@ public class HelloController implements Initializable {
 
     @FXML
     private void onAddClicked() {
-        // Sin límite de procesos - pueden agregarse infinitos
+        
         Dialog<Proceso> dialog = new Dialog<>();
         dialog.setTitle("Nuevo Proceso");
 
@@ -835,12 +823,12 @@ public class HelloController implements Initializable {
 
         dialog.showAndWait().ifPresent(proceso -> {
             if (proceso != null) {
-                // Asignar color solo si hay disponibles, sino usar color por defecto
+                
                 if (!coloresDisponibles.isEmpty()) {
                     Color color = coloresDisponibles.remove(0);
                     proceso.setColor(color);
                 } else {
-                    // Generar color aleatorio si no hay colores predefinidos disponibles
+                    
                     java.util.Random rand = new java.util.Random();
                     Color colorAleatorio = Color.color(rand.nextDouble(), rand.nextDouble(), rand.nextDouble());
                     proceso.setColor(colorAleatorio);
@@ -873,7 +861,7 @@ public class HelloController implements Initializable {
 
         Platform.runLater(() -> {
             prepararGantt();
-            limpiarTablaColas(); // LÍNEA AGREGADA
+            limpiarTablaColas(); 
 
             if (memoria != null) {
                 memoria.reiniciar();
@@ -888,40 +876,40 @@ public class HelloController implements Initializable {
                 crearProcesosPredefinidos();
             }
 
-            // Actualizar tabla después de recrear procesos
-            actualizarTablaColas(); // LÍNEA AGREGADA
+            
+            actualizarTablaColas(); 
         });
 
         System.out.println("🔄 Simulación reiniciada");
     }
 
     private void inicializarTablaColas() {
-        // Inicializar datos de la tabla
+        
         datosTablaEstados = FXCollections.observableArrayList();
 
-        // Configurar las columnas de la tabla
+        
         colNuevo.setCellValueFactory(new PropertyValueFactory<>("nuevo"));
         colListo.setCellValueFactory(new PropertyValueFactory<>("listo"));
         colEspera.setCellValueFactory(new PropertyValueFactory<>("espera"));
         colTerminado.setCellValueFactory(new PropertyValueFactory<>("terminado"));
 
-        // Asignar los datos a la tabla
+        
         tablaColas.setItems(datosTablaEstados);
 
-        // Crear primera fila vacía
+        
         actualizarTablaColas();
 
         System.out.println("📋 Tabla de colas inicializada");
     }
     private void actualizarTablaColas() {
         Platform.runLater(() -> {
-            // Limpiar listas actuales
+            
             procesosNuevo.clear();
             procesosListo.clear();
             procesosEspera.clear();
             procesosTerminado.clear();
 
-            // Clasificar procesos por estado
+            
             for (Proceso proceso : procesos) {
                 switch (proceso.getEstado()) {
                     case NUEVO:
@@ -937,25 +925,25 @@ public class HelloController implements Initializable {
                         procesosTerminado.add(proceso);
                         break;
                     case EJECUTANDO:
-                        // Los procesos ejecutándose se consideran "Listo" para efectos de visualización
+                        
                         procesosListo.add(proceso);
                         break;
                 }
             }
 
-            // Limpiar tabla actual
+            
             datosTablaEstados.clear();
 
-            // Determinar el número máximo de filas necesarias
+            
             int maxFilas = Math.max(Math.max(procesosNuevo.size(), procesosListo.size()),
                     Math.max(procesosEspera.size(), procesosTerminado.size()));
 
-            // Si no hay procesos, mostrar al menos una fila vacía
+            
             if (maxFilas == 0) {
                 maxFilas = 1;
             }
 
-            // Crear filas para la tabla usando FilaEstadoProcesos
+            
             for (int i = 0; i < maxFilas; i++) {
                 String nuevo = i < procesosNuevo.size() ?
                         formatearProceso(procesosNuevo.get(i)) : "";
@@ -979,7 +967,7 @@ public class HelloController implements Initializable {
         StringBuilder sb = new StringBuilder();
         sb.append("P").append(proceso.getId());
 
-        // Agregar información adicional según el estado
+        
         switch (proceso.getEstado()) {
             case NUEVO:
                 sb.append(" (").append(proceso.getTamanoMemoria()).append("MB)");
@@ -1001,9 +989,7 @@ public class HelloController implements Initializable {
         return sb.toString();
     }
 
-    /**
-     * Actualiza el estado de un proceso específico y refresca la tabla
-     */
+    
     private void actualizarEstadoProceso(Proceso proceso, EstadoProceso nuevoEstado) {
         if (proceso != null && proceso.getEstado() != nuevoEstado) {
             EstadoProceso estadoAnterior = proceso.getEstado();
@@ -1012,7 +998,7 @@ public class HelloController implements Initializable {
             System.out.println("🔄 Proceso " + proceso.getId() +
                     " cambió de " + estadoAnterior + " a " + nuevoEstado);
 
-            // Actualizar tabla inmediatamente
+            
             actualizarTablaColas();
         }
     }
@@ -1024,7 +1010,7 @@ public class HelloController implements Initializable {
             procesosEspera.clear();
             procesosTerminado.clear();
 
-            // Agregar fila vacía
+            
             datosTablaEstados.add(new FilaEstadoProcesos("", "", "", ""));
         });
     }
@@ -1046,35 +1032,35 @@ public class HelloController implements Initializable {
     }
     private void generarArchivoEstadisticas() {
         try {
-            // Crear nombre de archivo con timestamp
+            
             LocalDateTime ahora = LocalDateTime.now();
             DateTimeFormatter formato = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss");
             String nombreArchivo = "estadisticas_simulacion_" + formato.format(ahora) + ".txt";
 
-            // Crear archivo
+            
             FileWriter writer = new FileWriter(nombreArchivo);
 
-            // Escribir encabezado
+            
             writer.write("=" .repeat(80) + "\n");
             writer.write("           REPORTE DE ESTADÍSTICAS DE SIMULACIÓN\n");
             writer.write("=" .repeat(80) + "\n\n");
 
-            // Información general
+            
             escribirInformacionGeneral(writer);
 
-            // Estadísticas por proceso
+            
             escribirEstadisticasPorProceso(writer);
 
-            // Estadísticas de rendimiento
+            
             escribirEstadisticasRendimiento(writer);
 
-            // Estadísticas de memoria
+            
             escribirEstadisticasMemoria(writer);
 
-            // Estadísticas de CPU
+            
             escribirEstadisticasCPU(writer);
 
-            // Resumen final
+            
             escribirResumenFinal(writer);
 
             writer.close();
@@ -1124,14 +1110,14 @@ public class HelloController implements Initializable {
                     proceso.getTiempoLlegada(),
                     proceso.getDuracion(),
                     proceso.getTamanoMemoria(),
-                    proceso.getTiempoInicioReal(), // NUEVO
-                    proceso.getTiempoFinalizacionReal(), // NUEVO
+                    proceso.getTiempoInicioReal(), 
+                    proceso.getTiempoFinalizacionReal(), 
                     proceso.getTiempoEspera(),
                     proceso.getTiempoRetorno(),
                     proceso.getEstado().toString()));
         }
 
-        // AGREGAR SECCIÓN DE VERIFICACIÓN SJF:
+        
         writer.write("\nVERIFICACIÓN DEL ALGORITMO SJF\n");
         writer.write("-".repeat(50) + "\n");
         verificarSJF(writer);
@@ -1139,7 +1125,7 @@ public class HelloController implements Initializable {
     }
 
     private void verificarSJF(FileWriter writer) throws IOException {
-        // Agrupar procesos por tiempo de llegada
+        
         Map<Integer, List<Proceso>> procesosPorLlegada = procesos.stream()
                 .filter(p -> p.getEstado() == EstadoProceso.TERMINADO)
                 .collect(Collectors.groupingBy(Proceso::getTiempoLlegada));
@@ -1153,12 +1139,12 @@ public class HelloController implements Initializable {
             if (procesosGrupo.size() > 1) {
                 writer.write("Procesos que llegaron en t=" + tiempoLlegada + ":\n");
 
-                // Ordenar por burst time (como debería hacer SJF)
+                
                 List<Proceso> ordenSJF = procesosGrupo.stream()
                         .sorted(Comparator.comparingInt(Proceso::getDuracion))
                         .collect(Collectors.toList());
 
-                // Ordenar por tiempo de inicio real (como realmente ejecutó)
+                
                 List<Proceso> ordenReal = procesosGrupo.stream()
                         .sorted(Comparator.comparingInt(Proceso::getTiempoInicioReal))
                         .collect(Collectors.toList());
@@ -1177,7 +1163,7 @@ public class HelloController implements Initializable {
                 }
                 writer.write("\n");
 
-                // Verificar si coinciden
+                
                 boolean sjfCorrecto = true;
                 for (int i = 0; i < Math.min(ordenSJF.size(), ordenReal.size()); i++) {
                     if (ordenSJF.get(i).getId() != ordenReal.get(i).getId()) {
@@ -1190,7 +1176,7 @@ public class HelloController implements Initializable {
             }
         }
 
-        // Análisis de procesos individuales que llegaron en diferentes momentos
+        
         writer.write("Procesos que llegaron individualmente:\n");
         for (Proceso proceso : procesos.stream()
                 .filter(p -> p.getEstado() == EstadoProceso.TERMINADO)
@@ -1212,7 +1198,7 @@ public class HelloController implements Initializable {
     private void escribirEstadisticasRendimiento(FileWriter writer) throws IOException {
         DecimalFormat df = new DecimalFormat("#.##");
 
-        // Calcular promedios
+        
         double promedioEspera = procesos.stream()
                 .filter(p -> p.getEstado() == EstadoProceso.TERMINADO)
                 .mapToInt(Proceso::getTiempoEspera)
@@ -1270,7 +1256,7 @@ public class HelloController implements Initializable {
             writer.write("Memoria en swap: " + memoria.getSwapping().getMemoriaRequerida() + " MB\n");
         }
 
-        // Fragmentación
+        
         int bloquesLibres = (int) memoria.getBloques().stream()
                 .filter(bloque -> !bloque.isOcupado())
                 .count();
@@ -1297,7 +1283,7 @@ public class HelloController implements Initializable {
         writer.write("Uso promedio de CPU: " + df.format(cpu.getUsoPromedioCpu()) + "%\n");
         writer.write("Procesos ejecutados: " + cpu.getProcesosTotalesEjecutados() + "\n");
 
-        // Estadísticas por core
+        
         writer.write("\nEstado por core:\n");
         for (int i = 0; i < cpu.getNumeroCores(); i++) {
             Core core = cpu.getCore(i);
@@ -1316,7 +1302,7 @@ public class HelloController implements Initializable {
         writer.write("RESUMEN FINAL Y ANÁLISIS\n");
         writer.write("-".repeat(50) + "\n");
 
-        // Proceso más rápido y más lento
+        
         Proceso procesoMasRapido = procesos.stream()
                 .filter(p -> p.getEstado() == EstadoProceso.TERMINADO)
                 .min((p1, p2) -> Integer.compare(p1.getTiempoRetorno(), p2.getTiempoRetorno()))
@@ -1339,10 +1325,10 @@ public class HelloController implements Initializable {
                     procesoMasLento.getTiempoRetorno() + " unidades\n");
         }
 
-        // AGREGAR VERIFICACIÓN ESPECÍFICA DE SJF:
+        
         writer.write("\nANÁLISIS DEL ALGORITMO SJF:\n");
 
-        // Calcular si SJF minimizó efectivamente el tiempo de espera
+        
         double tiempoEsperaPromedio = procesos.stream()
                 .filter(p -> p.getEstado() == EstadoProceso.TERMINADO)
                 .mapToInt(Proceso::getTiempoEspera)
@@ -1351,7 +1337,7 @@ public class HelloController implements Initializable {
 
         writer.write("Tiempo de espera promedio: " + df.format(tiempoEsperaPromedio) + " unidades\n");
 
-        // Verificar principio de SJF
+        
         long procesosConEspera = procesos.stream()
                 .filter(p -> p.getEstado() == EstadoProceso.TERMINADO)
                 .filter(p -> p.getTiempoEspera() > 0)
@@ -1361,7 +1347,7 @@ public class HelloController implements Initializable {
         writer.write("Eficiencia del algoritmo " + algoritmoUtilizado + ": " +
                 df.format(calcularEficiencia()) + "%\n");
 
-        // Recomendaciones específicas para SJF
+        
         writer.write("\nRECOMENDACIONES ESPECÍFICAS PARA SJF:\n");
         if (tiempoEsperaPromedio < 10) {
             writer.write("✓ SJF está funcionando eficientemente - bajo tiempo de espera promedio.\n");
@@ -1435,7 +1421,7 @@ public class HelloController implements Initializable {
                 .mapToInt(Proceso::getDuracion)
                 .sum();
 
-        int tiempoTotalDisponible = tiempoActual * 5; // 5 cores
+        int tiempoTotalDisponible = tiempoActual * 5; 
 
         return tiempoTotalDisponible > 0 ?
                 (double) tiempoTotalCPU / tiempoTotalDisponible * 100 : 0.0;

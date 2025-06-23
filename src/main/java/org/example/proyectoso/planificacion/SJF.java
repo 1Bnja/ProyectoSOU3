@@ -4,36 +4,28 @@ import org.example.proyectoso.models.*;
 import java.util.*;
 import java.util.stream.Collectors;
 
-/**
- * Implementación del algoritmo de planificación Shortest Job First (SJF)
- * Ejecuta los procesos en orden de menor a mayor tiempo de ráfaga
- */
+
 public class SJF extends Planificacion {
 
-    // Configuración del algoritmo
+    
     private boolean preemptivo;
     private final Object sjfLock = new Object();
 
-    // Control de ejecución
+    
     private volatile boolean pausado;
     private Thread hiloEjecucion;
 
-    // Estadísticas específicas de SJF
+    
     private int cambiosContexto;
     private long tiempoPromedioEspera;
     private long tiempoPromedioRespuesta;
 
-    /**
-     * Constructor para SJF no preemptivo (por defecto)
-     */
+    
     public SJF() {
         this(false);
     }
 
-    /**
-     * Constructor que permite configurar si es preemptivo o no
-     * @param preemptivo true para SJF preemptivo (SRTF), false para SJF no preemptivo
-     */
+    
     public SJF(boolean preemptivo) {
         super();
         this.preemptivo = preemptivo;
@@ -60,7 +52,7 @@ public class SJF extends Planificacion {
 
         iniciarEjecucion(procesos);
 
-        // Crear hilo de ejecución
+        
         hiloEjecucion = new Thread(() -> {
             try {
                 if (preemptivo) {
@@ -80,14 +72,12 @@ public class SJF extends Planificacion {
         hiloEjecucion.start();
     }
 
-    /**
-     * Implementación SJF No Preemptivo
-     */
+    
     private void ejecutarSJFNoPreemptivo(List<Proceso> procesos) {
         synchronized (sjfLock) {
             System.out.println("🚀 Iniciando SJF No Preemptivo con " + procesos.size() + " procesos");
 
-            // Ordenar procesos por tiempo de ráfaga
+            
             List<Proceso> procesosOrdenados = ordenarProcesos(procesos);
 
             for (Proceso proceso : procesosOrdenados) {
@@ -98,7 +88,7 @@ public class SJF extends Planificacion {
                 ejecutarProcesoCompleto(proceso);
                 procesosEjecutados++;
 
-                // Pausa breve entre procesos
+                
                 try {
                     Thread.sleep(50);
                 } catch (InterruptedException e) {
@@ -111,9 +101,7 @@ public class SJF extends Planificacion {
         }
     }
 
-    /**
-     * Implementación SJF Preemptivo (SRTF - Shortest Remaining Time First)
-     */
+    
     private void ejecutarSJFPreemptivo(List<Proceso> procesos) {
         synchronized (sjfLock) {
             System.out.println("🚀 Iniciando SJF Preemptivo (SRTF) con " + procesos.size() + " procesos");
@@ -122,23 +110,23 @@ public class SJF extends Planificacion {
                     Comparator.comparingInt(Proceso::getTiempoRestante)
             );
 
-            // Agregar procesos a la cola
+            
             colaListos.addAll(procesos);
 
             while (!colaListos.isEmpty() && ejecutando && !pausado) {
-                // Obtener proceso con menor tiempo restante
+                
                 Proceso procesoActual = colaListos.poll();
 
                 if (procesoActual == null || procesoActual.haTerminado()) {
                     continue;
                 }
 
-                // Ejecutar por un quantum pequeño (simulando preempción)
+                
                 int tiempoEjecucion = Math.min(100, procesoActual.getTiempoRestante());
 
                 ejecutarProcesoParcial(procesoActual, tiempoEjecucion);
 
-                // Si el proceso no ha terminado, devolverlo a la cola
+                
                 if (!procesoActual.haTerminado()) {
                     colaListos.offer(procesoActual);
                     cambiosContexto++;
@@ -146,10 +134,10 @@ public class SJF extends Planificacion {
                     procesosEjecutados++;
                 }
 
-                // Verificar si hay procesos con menor tiempo restante
+                
                 reordenarCola(colaListos);
 
-                // Pausa breve para simular cambio de contexto
+                
                 try {
                     Thread.sleep(10);
                 } catch (InterruptedException e) {
@@ -162,15 +150,13 @@ public class SJF extends Planificacion {
         }
     }
 
-    /**
-     * Ejecuta un proceso completo sin preempción
-     */
+    
     private void ejecutarProcesoCompleto(Proceso proceso) {
         if (proceso == null || proceso.haTerminado()) {
             return;
         }
 
-        // Buscar core libre
+        
         Core coreLibre = esperarCoreLibre();
         if (coreLibre == null) {
             return;
@@ -183,7 +169,7 @@ public class SJF extends Planificacion {
             proceso.setEstado(EstadoProceso.EJECUTANDO);
             coreLibre.asignarProceso(proceso);
 
-            // Simular ejecución completa
+            
             int tiempoRestante = proceso.getTiempoRestante();
             while (tiempoRestante > 0 && ejecutando && !pausado) {
                 int tiempoEjecutar = Math.min(50, tiempoRestante);
@@ -209,9 +195,7 @@ public class SJF extends Planificacion {
         }
     }
 
-    /**
-     * Ejecuta un proceso parcialmente (para modo preemptivo)
-     */
+    
     private void ejecutarProcesoParcial(Proceso proceso, int tiempoEjecucion) {
         if (proceso == null || proceso.haTerminado() || tiempoEjecucion <= 0) {
             return;
@@ -230,7 +214,7 @@ public class SJF extends Planificacion {
                     " por " + tiempoEjecucion + "ms (Restante: " +
                     proceso.getTiempoRestante() + "ms)");
 
-            // Simular ejecución parcial
+            
             int tiempoEjecutado = 0;
             while (tiempoEjecutado < tiempoEjecucion &&
                     !proceso.haTerminado() && ejecutando && !pausado) {
@@ -267,8 +251,8 @@ public class SJF extends Planificacion {
             return new ArrayList<>();
         }
 
-        // Para SJF no preemptivo: ordenar por tiempo de ráfaga total
-        // Para SJF preemptivo: ordenar por tiempo de ráfaga restante
+        
+        
         return procesos.stream()
                 .filter(Objects::nonNull)
                 .sorted((p1, p2) -> {
@@ -281,9 +265,7 @@ public class SJF extends Planificacion {
                 .collect(Collectors.toList());
     }
 
-    /**
-     * Reordena la cola de procesos listos (para modo preemptivo)
-     */
+    
     private void reordenarCola(Queue<Proceso> cola) {
         if (cola.isEmpty()) {
             return;
@@ -297,9 +279,7 @@ public class SJF extends Planificacion {
                 .forEach(cola::offer);
     }
 
-    /**
-     * Calcula estadísticas específicas de SJF
-     */
+    
     private void calcularEstadisticas(List<Proceso> procesos) {
         List<Proceso> procesosTerminados = procesos.stream()
                 .filter(Proceso::haTerminado)
@@ -317,8 +297,8 @@ public class SJF extends Planificacion {
                     .orElse(0.0);
         }
 
-        // En SJF no preemptivo, los cambios de contexto son igual al número de procesos - 1
-        // (un cambio cada vez que termina un proceso y empieza otro, excepto el primero)
+        
+        
         if (!preemptivo && procesosTerminados.size() > 0) {
             cambiosContexto = procesosTerminados.size() - 1;
         }
@@ -354,7 +334,7 @@ public class SJF extends Planificacion {
             if (hiloEjecucion != null && hiloEjecucion.isAlive()) {
                 hiloEjecucion.interrupt();
                 try {
-                    hiloEjecucion.join(1000); // Esperar máximo 1 segundo
+                    hiloEjecucion.join(1000); 
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                 }
@@ -398,7 +378,7 @@ public class SJF extends Planificacion {
         return estado.toString();
     }
 
-    // Getters específicos
+    
     public boolean isPreemptivo() {
         return preemptivo;
     }

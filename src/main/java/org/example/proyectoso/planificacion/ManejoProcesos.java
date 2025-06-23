@@ -4,32 +4,27 @@ import org.example.proyectoso.models.*;
 import java.util.*;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-/**
- * Clase que maneja la cola de procesos y su distribución
- * Actúa como intermediario entre el Controlador y el Planificador
- */
+
 public class ManejoProcesos {
-    // Cola principal de procesos
+    
     private final Queue<Proceso> colaProcesos;
     private final List<Proceso> procesosCompletados;
     private final List<Proceso> procesosEnEjecucion;
 
-    // Referencia al planificador
+    
     private Planificacion planificador;
 
-    // Control de estado
+    
     private final Object lock = new Object();
     private volatile boolean activo;
 
-    // Estadísticas
+    
     private int procesosTotales;
     private int procesosCompletadosCount;
     private long tiempoInicioOperacion;
     private long tiempoTotalOperacion;
 
-    /**
-     * Constructor
-     */
+    
     public ManejoProcesos() {
         this.colaProcesos = new ConcurrentLinkedQueue<>();
         this.procesosCompletados = new ArrayList<>();
@@ -43,9 +38,7 @@ public class ManejoProcesos {
         System.out.println("📋 ManejoProcesos inicializado");
     }
 
-    /**
-     * Establece el planificador a utilizar
-     */
+    
     public void setPlanificador(Planificacion planificador) {
         synchronized (lock) {
             this.planificador = planificador;
@@ -53,9 +46,7 @@ public class ManejoProcesos {
         }
     }
 
-    /**
-     * Agrega un proceso a la cola
-     */
+    
     public boolean agregarProceso(Proceso proceso) {
         if (proceso == null) {
             return false;
@@ -71,9 +62,7 @@ public class ManejoProcesos {
         }
     }
 
-    /**
-     * Agrega múltiples procesos a la cola
-     */
+    
     public void agregarProcesos(List<Proceso> procesos) {
         if (procesos == null || procesos.isEmpty()) {
             return;
@@ -92,36 +81,28 @@ public class ManejoProcesos {
         }
     }
 
-    /**
-     * Obtiene el siguiente proceso de la cola
-     */
+    
     public Proceso obtenerSiguienteProceso() {
         synchronized (lock) {
             return colaProcesos.poll();
         }
     }
 
-    /**
-     * Obtiene el siguiente proceso sin removerlo de la cola
-     */
+    
     public Proceso verSiguienteProceso() {
         synchronized (lock) {
             return colaProcesos.peek();
         }
     }
 
-    /**
-     * Obtiene todos los procesos de la cola
-     */
+    
     public List<Proceso> obtenerTodosLosProcesos() {
         synchronized (lock) {
             return new ArrayList<>(colaProcesos);
         }
     }
 
-    /**
-     * Inicia la ejecución de todos los procesos en cola
-     */
+    
     public void iniciarEjecucion() {
         synchronized (lock) {
             if (planificador == null) {
@@ -139,28 +120,26 @@ public class ManejoProcesos {
 
             System.out.println("🚀 Iniciando ejecución de " + colaProcesos.size() + " procesos");
 
-            // Convertir cola a lista para el planificador
+            
             List<Proceso> procesosParaEjecutar = new ArrayList<>(colaProcesos);
             colaProcesos.clear();
 
-            // Mover procesos a ejecución
+            
             procesosEnEjecucion.addAll(procesosParaEjecutar);
 
-            // Ejecutar con el planificador
+            
             planificador.ejecutarProcesos(procesosParaEjecutar);
         }
     }
 
-    /**
-     * Marca un proceso como completado
-     */
+    
     public void marcarProcesoCompletado(Proceso proceso) {
         if (proceso == null) {
             return;
         }
 
         synchronized (lock) {
-            // Remover de ejecución y agregar a completados
+            
             procesosEnEjecucion.remove(proceso);
             procesosCompletados.add(proceso);
             procesosCompletadosCount++;
@@ -169,16 +148,14 @@ public class ManejoProcesos {
 
             System.out.println("✅ Proceso " + proceso.getId() + " marcado como completado");
 
-            // Verificar si todos los procesos han terminado
+            
             if (procesosEnEjecucion.isEmpty() && colaProcesos.isEmpty()) {
                 finalizarOperacion();
             }
         }
     }
 
-    /**
-     * Devuelve un proceso a la cola (para algoritmos como Round Robin)
-     */
+    
     public void devolverProcesoACola(Proceso proceso) {
         if (proceso == null || proceso.haTerminado()) {
             return;
@@ -192,14 +169,12 @@ public class ManejoProcesos {
         }
     }
 
-    /**
-     * Pausa la ejecución de todos los procesos
-     */
+    
     public void pausarEjecucion() {
         synchronized (lock) {
             activo = false;
 
-            // Pausar procesos en ejecución
+            
             for (Proceso proceso : procesosEnEjecucion) {
                 if (proceso.estaEjecutando()) {
                     proceso.pausar();
@@ -210,14 +185,12 @@ public class ManejoProcesos {
         }
     }
 
-    /**
-     * Detiene completamente la ejecución
-     */
+    
     public void detenerEjecucion() {
         synchronized (lock) {
             activo = false;
 
-            // Mover todos los procesos en ejecución de vuelta a la cola
+            
             for (Proceso proceso : procesosEnEjecucion) {
                 if (!proceso.haTerminado()) {
                     proceso.pausar();
@@ -235,20 +208,18 @@ public class ManejoProcesos {
         }
     }
 
-    /**
-     * Reinicia el manejador de procesos
-     */
+    
     public void reiniciar() {
         synchronized (lock) {
-            // Detener ejecución actual
+            
             detenerEjecucion();
 
-            // Limpiar todas las colas
+            
             colaProcesos.clear();
             procesosCompletados.clear();
             procesosEnEjecucion.clear();
 
-            // Reiniciar estadísticas
+            
             procesosTotales = 0;
             procesosCompletadosCount = 0;
             tiempoTotalOperacion = 0;
@@ -258,9 +229,7 @@ public class ManejoProcesos {
         }
     }
 
-    /**
-     * Finaliza la operación actual
-     */
+    
     private void finalizarOperacion() {
         activo = false;
         tiempoTotalOperacion = System.currentTimeMillis() - tiempoInicioOperacion;
@@ -269,9 +238,7 @@ public class ManejoProcesos {
         System.out.println("📊 Procesos completados: " + procesosCompletadosCount + "/" + procesosTotales);
     }
 
-    /**
-     * Obtiene estadísticas del manejo de procesos
-     */
+    
     public String getEstadisticas() {
         synchronized (lock) {
             StringBuilder stats = new StringBuilder();
@@ -311,9 +278,7 @@ public class ManejoProcesos {
         }
     }
 
-    /**
-     * Obtiene el estado actual del manejador
-     */
+    
     public String getEstadoActual() {
         synchronized (lock) {
             StringBuilder estado = new StringBuilder();
@@ -328,7 +293,7 @@ public class ManejoProcesos {
                 estado.append("\nPróximos en cola:\n");
                 int count = 0;
                 for (Proceso p : colaProcesos) {
-                    if (count >= 5) break; // Mostrar solo los primeros 5
+                    if (count >= 5) break; 
                     estado.append("  - ").append(p.toString()).append("\n");
                     count++;
                 }
@@ -338,7 +303,7 @@ public class ManejoProcesos {
         }
     }
 
-    // Getters
+    
     public int getTamanoCola() {
         synchronized (lock) {
             return colaProcesos.size();
@@ -399,9 +364,7 @@ public class ManejoProcesos {
         }
     }
 
-    /**
-     * Verifica si la cola está vacía
-     */
+    
     public boolean colaVacia() {
         synchronized (lock) {
             return colaProcesos.isEmpty();

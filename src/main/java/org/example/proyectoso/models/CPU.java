@@ -3,71 +3,60 @@ package org.example.proyectoso.models;
 import java.util.*;
 import java.util.concurrent.*;
 
-/**
- * Clase que representa la CPU con múltiples cores
- * Gestiona la ejecución de procesos en paralelo
- */
+
 public class CPU {
-    // Configuración de la CPU
+    
     private final List<Core> cores;
     private final int numeroCores;
     private final String nombre;
 
-    // Control de ejecución
+    
     private final Object lock = new Object();
     private volatile boolean ejecutando = false;
     private ExecutorService executorService;
 
-    // Configuración de algoritmos
-    private int quantumRoundRobin = 100; // ms
+    
+    private int quantumRoundRobin = 100; 
     private TipoAlgoritmo algoritmoActual = TipoAlgoritmo.ROUND_ROBIN;
 
-    // Estadísticas generales
+    
     private long tiempoInicioOperacion;
     private long tiempoTotalOperacion;
     private int procesosTotalesEjecutados;
 
-    /**
-     * Enumeración para tipos de algoritmos de planificación
-     */
+    
     public enum TipoAlgoritmo {
         ROUND_ROBIN,
-        FCFS,           // First Come First Served
-        SJF,            // Shortest Job First
-        PRIORITY        // Basado en prioridades
+        FCFS,           
+        SJF,            
+        PRIORITY        
     }
 
-    /**
-     * Constructor
-     */
+    
     public CPU(int numeroCores) {
         this.numeroCores = Math.max(1, numeroCores);
         this.nombre = "CPU-" + this.numeroCores + "Core";
         this.cores = new ArrayList<>();
 
-        // Inicializar cores
+        
         for (int i = 0; i < this.numeroCores; i++) {
             cores.add(new Core(i));
         }
 
-        // Inicializar executor service
+        
         this.executorService = Executors.newFixedThreadPool(this.numeroCores);
 
         System.out.println("🔧 " + nombre + " inicializada con " + numeroCores + " cores");
     }
 
-    /**
-     * Constructor con nombre personalizado
-     */
+    
     public CPU(int numeroCores, String nombre) {
         this(numeroCores);
-        // No se puede cambiar el nombre después de la inicialización de cores,
-        // pero se puede mostrar información personalizada
+        
+        
     }
 
-    /**
-     * Ejecuta un proceso en el primer core disponible
-     */
+    
     public boolean ejecutarProceso(Proceso proceso) {
         synchronized (lock) {
             Core coreLibre = obtenerCoreLibre();
@@ -76,24 +65,22 @@ public class CPU {
                 return ejecutarEnCore(proceso, coreLibre);
             }
 
-            return false; // No hay cores disponibles
+            return false; 
         }
     }
 
-    /**
-     * Ejecuta un proceso en un core específico
-     */
+    
     public boolean ejecutarEnCore(Proceso proceso, Core core) {
         if (proceso == null || core == null) {
             return false;
         }
 
-        // Configurar quantum según el algoritmo
+        
         core.setQuantum(quantumRoundRobin);
 
-        // Asignar proceso al core
+        
         if (core.asignarProceso(proceso)) {
-            // Ejecutar en un hilo separado
+            
             executorService.submit(() -> {
                 try {
                     switch (algoritmoActual) {
@@ -117,9 +104,7 @@ public class CPU {
         return false;
     }
 
-    /**
-     * Ejecuta una lista de procesos usando el algoritmo configurado
-     */
+    
     public void ejecutarProcesos(List<Proceso> procesos) {
         if (procesos == null || procesos.isEmpty()) {
             return;
@@ -159,14 +144,12 @@ public class CPU {
         System.out.println("✅ Ejecución completada en " + tiempoTotalOperacion + "ms");
     }
 
-    /**
-     * Implementación de Round Robin
-     */
+    
     private void ejecutarRoundRobin(List<Proceso> procesos) {
         Queue<Proceso> colaProcesos = new LinkedList<>(procesos);
 
         while (!colaProcesos.isEmpty()) {
-            // Asignar procesos a cores disponibles
+            
             List<Future<Boolean>> futures = new ArrayList<>();
 
             for (Core core : cores) {
@@ -177,7 +160,7 @@ public class CPU {
                         core.asignarProceso(proceso);
                         boolean terminado = core.ejecutarQuantum();
 
-                        // Si no terminó, regresar a la cola
+                        
                         if (!terminado && !proceso.haTerminado()) {
                             synchronized (colaProcesos) {
                                 colaProcesos.offer(proceso);
@@ -191,7 +174,7 @@ public class CPU {
                 }
             }
 
-            // Esperar a que terminen los quantum actuales
+            
             for (Future<Boolean> future : futures) {
                 try {
                     future.get();
@@ -200,7 +183,7 @@ public class CPU {
                 }
             }
 
-            // Pequeña pausa para evitar busy waiting
+            
             try {
                 Thread.sleep(10);
             } catch (InterruptedException e) {
@@ -210,20 +193,18 @@ public class CPU {
         }
     }
 
-    /**
-     * Implementación de First Come First Served
-     */
+    
     private void ejecutarFCFS(List<Proceso> procesos) {
-        // Ordenar por tiempo de llegada
+        
         List<Proceso> procesosOrdenados = new ArrayList<>(procesos);
         procesosOrdenados.sort(Comparator.comparingInt(Proceso::getTiempoLlegada));
 
         for (Proceso proceso : procesosOrdenados) {
-            // Esperar un core libre
+            
             Core coreLibre = esperarCoreLibre();
             ejecutarEnCore(proceso, coreLibre);
 
-            // Esperar a que termine
+            
             while (coreLibre.isOcupado()) {
                 try {
                     Thread.sleep(50);
@@ -235,31 +216,25 @@ public class CPU {
         }
     }
 
-    /**
-     * Implementación de Shortest Job First
-     */
+    
     private void ejecutarSJF(List<Proceso> procesos) {
-        // Ordenar por duración (tiempo de ejecución)
+        
         List<Proceso> procesosOrdenados = new ArrayList<>(procesos);
         procesosOrdenados.sort(Comparator.comparingInt(Proceso::getDuracion));
 
-        ejecutarFCFS(procesosOrdenados); // Misma lógica pero diferente orden
+        ejecutarFCFS(procesosOrdenados); 
     }
 
-    /**
-     * Implementación por prioridad (usando tamaño de memoria como prioridad)
-     */
+    
     private void ejecutarPorPrioridad(List<Proceso> procesos) {
-        // Ordenar por tamaño de memoria (menor tamaño = mayor prioridad)
+        
         List<Proceso> procesosOrdenados = new ArrayList<>(procesos);
         procesosOrdenados.sort(Comparator.comparingInt(Proceso::getTamanoMemoria));
 
         ejecutarFCFS(procesosOrdenados);
     }
 
-    /**
-     * Espera hasta que haya un core libre disponible
-     */
+    
     private Core esperarCoreLibre() {
         while (true) {
             Core coreLibre = obtenerCoreLibre();
@@ -271,14 +246,12 @@ public class CPU {
                 Thread.sleep(50);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
-                return cores.get(0); // Retornar el primer core en caso de interrupción
+                return cores.get(0); 
             }
         }
     }
 
-    /**
-     * Obtiene el primer core libre disponible
-     */
+    
     private Core obtenerCoreLibre() {
         synchronized (lock) {
             return cores.stream()
@@ -288,9 +261,7 @@ public class CPU {
         }
     }
 
-    /**
-     * Obtiene todos los cores libres
-     */
+    
     public List<Core> getCoresLibres() {
         synchronized (lock) {
             return cores.stream()
@@ -299,9 +270,7 @@ public class CPU {
         }
     }
 
-    /**
-     * Obtiene todos los cores ocupados
-     */
+    
     public List<Core> getCoresOcupados() {
         synchronized (lock) {
             return cores.stream()
@@ -310,9 +279,7 @@ public class CPU {
         }
     }
 
-    /**
-     * Interrumpe todos los procesos en ejecución
-     */
+    
     public List<Proceso> interrumpirTodos() {
         synchronized (lock) {
             List<Proceso> procesosInterrumpidos = new ArrayList<>();
@@ -331,17 +298,15 @@ public class CPU {
         }
     }
 
-    /**
-     * Detiene la CPU y libera recursos
-     */
+    
     public void detener() {
         synchronized (lock) {
             ejecutando = false;
 
-            // Interrumpir todos los procesos
+            
             interrumpirTodos();
 
-            // Shutdown del executor service
+            
             if (executorService != null && !executorService.isShutdown()) {
                 executorService.shutdown();
                 try {
@@ -358,23 +323,21 @@ public class CPU {
         }
     }
 
-    /**
-     * Reinicia la CPU
-     */
+    
     public void reiniciar() {
         synchronized (lock) {
             detener();
 
-            // Reiniciar executor service
+            
             executorService = Executors.newFixedThreadPool(numeroCores);
 
-            // Reiniciar estadísticas de cores
+            
             for (Core core : cores) {
                 core.forzarLiberacion();
                 core.reiniciarEstadisticas();
             }
 
-            // Reiniciar estadísticas generales
+            
             tiempoTotalOperacion = 0;
             procesosTotalesEjecutados = 0;
 
@@ -382,9 +345,7 @@ public class CPU {
         }
     }
 
-    /**
-     * Configura el algoritmo de planificación
-     */
+    
     public void setAlgoritmo(TipoAlgoritmo algoritmo) {
         synchronized (lock) {
             this.algoritmoActual = algoritmo;
@@ -392,14 +353,12 @@ public class CPU {
         }
     }
 
-    /**
-     * Configura el quantum para Round Robin
-     */
+    
     public void setQuantumRoundRobin(int quantum) {
         synchronized (lock) {
             this.quantumRoundRobin = Math.max(1, quantum);
 
-            // Actualizar quantum en todos los cores
+            
             for (Core core : cores) {
                 core.setQuantum(this.quantumRoundRobin);
             }
@@ -408,9 +367,7 @@ public class CPU {
         }
     }
 
-    /**
-     * Obtiene el estado actual de la CPU
-     */
+    
     public String getEstadoActual() {
         synchronized (lock) {
             StringBuilder estado = new StringBuilder();
@@ -431,9 +388,7 @@ public class CPU {
         }
     }
 
-    /**
-     * Obtiene estadísticas detalladas
-     */
+    
     public String getEstadisticas() {
         synchronized (lock) {
             StringBuilder stats = new StringBuilder();
@@ -452,7 +407,7 @@ public class CPU {
                 stats.append("  ").append(core.getEstadisticas()).append("\n");
             }
 
-            // Estadísticas generales
+            
             double usoPromedio = cores.stream()
                     .mapToDouble(Core::getPorcentajeUso)
                     .average()
@@ -464,21 +419,17 @@ public class CPU {
         }
     }
 
-    /**
-     * Imprime el estado actual en consola
-     */
+    
     public void imprimirEstado() {
         System.out.println(getEstadoActual());
     }
 
-    /**
-     * Imprime las estadísticas en consola
-     */
+    
     public void imprimirEstadisticas() {
         System.out.println(getEstadisticas());
     }
 
-    // Getters principales
+    
     public List<Core> getCores() {
         synchronized (lock) {
             return new ArrayList<>(cores);
@@ -540,9 +491,7 @@ public class CPU {
         }
     }
 
-    /**
-     * Obtiene un core específico por ID
-     */
+    
     public Core getCore(int id) {
         synchronized (lock) {
             return cores.stream()

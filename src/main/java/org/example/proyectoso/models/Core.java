@@ -2,21 +2,21 @@ package org.example.proyectoso.models;
 
 
 public class Core {
-    // Identificación
+    
     private final int id;
     private final String nombre;
 
-    // Estado del core
+    
     private boolean ocupado;
     private Proceso procesoActual;
     private long tiempoInicioEjecucion;
     private long tiempoTotalEjecucion;
 
-    // Configuración
+    
     private int quantum;
     private final Object lock = new Object();
 
-    // Estadísticas
+    
     private int procesosEjecutados;
     private long tiempoInactivo;
     private long ultimoCambioEstado;
@@ -29,7 +29,7 @@ public class Core {
         this.procesoActual = null;
         this.tiempoInicioEjecucion = 0;
         this.tiempoTotalEjecucion = 0;
-        this.quantum = 100; // Quantum por defecto en ms
+        this.quantum = 100; 
         this.procesosEjecutados = 0;
         this.tiempoInactivo = 0;
         this.ultimoCambioEstado = System.currentTimeMillis();
@@ -46,14 +46,14 @@ public class Core {
             this.ocupado = true;
             this.tiempoInicioEjecucion = System.currentTimeMillis();
 
-            // Actualizar estadísticas de inactividad
+            
             long tiempoActual = System.currentTimeMillis();
             if (!ocupado) {
                 tiempoInactivo += (tiempoActual - ultimoCambioEstado);
             }
             ultimoCambioEstado = tiempoActual;
 
-            // Iniciar ejecución del proceso
+            
             proceso.iniciarEjecucion(tiempoActual);
 
             System.out.println("🔧 " + nombre + " asignado a Proceso " + proceso.getId());
@@ -76,7 +76,7 @@ public class Core {
                 return true;
             }
 
-            // Si no terminó, pausar el proceso (fin de quantum)
+            
             procesoActual.pausar();
             return false;
         }
@@ -91,7 +91,7 @@ public class Core {
 
             long tiempoActual = System.currentTimeMillis();
 
-            // Ejecutar hasta que termine
+            
             while (!procesoActual.haTerminado()) {
                 boolean terminado = procesoActual.ejecutar(
                         procesoActual.getTiempoRestante(),
@@ -162,7 +162,7 @@ public class Core {
 
     public void setQuantum(int quantum) {
         synchronized (lock) {
-            this.quantum = Math.max(1, quantum); // Mínimo 1ms
+            this.quantum = Math.max(1, quantum); 
         }
     }
 
@@ -202,7 +202,7 @@ public class Core {
         }
     }
 
-    // Getters
+    
     public int getId() {
         return id;
     }

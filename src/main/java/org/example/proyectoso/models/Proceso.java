@@ -3,12 +3,12 @@ package org.example.proyectoso.models;
 import javafx.scene.paint.Color;
 
 public class Proceso {
-    // Identificación
+    
     private static int contadorId = 1;
     private final int id;
     private final String nombre;
 
-    // Características del proceso
+    
     private final int duracion;
     private final int tamanoMemoria;
     private final int tiempoLlegada;
@@ -16,22 +16,22 @@ public class Proceso {
     private int tiempoRespuesta;
     private int tiempoRetorno;
 
-    // Estado y ejecución
+    
     private EstadoProceso estado;
     private int tiempoEjecutado;
     private int tiempoRestante;
     private long tiempoInicioEjecucion;
     private long tiempoFinalizacion;
 
-    // NUEVAS VARIABLES AGREGADAS:
-    private boolean yaComenzo = false;        // Para saber si ya empezó alguna vez
-    private int tiempoInicioReal = -1;        // Primer momento que comenzó a ejecutarse
-    private int tiempoFinalizacionReal = -1;  // Momento que terminó completamente
+    
+    private boolean yaComenzo = false;        
+    private int tiempoInicioReal = -1;        
+    private int tiempoFinalizacionReal = -1;  
 
-    // Para Round Robin
+    
     private int quantumRestante;
 
-    // Color distintivo para la visualización
+    
     private Color color;
 
     public Proceso(String nombre, int duracion, int tamanoMemoria, int tiempoLlegada) {
@@ -41,18 +41,18 @@ public class Proceso {
         this.tamanoMemoria = tamanoMemoria;
         this.tiempoLlegada = tiempoLlegada;
 
-        // Inicializar estado
+        
         this.estado = EstadoProceso.NUEVO;
         this.tiempoEjecutado = 0;
         this.tiempoRestante = duracion;
         this.tiempoEspera = 0;
-        this.tiempoRespuesta = -1; // -1 indica que no ha comenzado
+        this.tiempoRespuesta = -1; 
         this.tiempoRetorno = 0;
         this.quantumRestante = 0;
         this.tiempoInicioEjecucion = -1;
         this.tiempoFinalizacion = -1;
 
-        // NUEVAS INICIALIZACIONES:
+        
         this.yaComenzo = false;
         this.tiempoInicioReal = -1;
         this.tiempoFinalizacionReal = -1;
@@ -62,12 +62,12 @@ public class Proceso {
         this(nombre, duracion, tamanoMemoria, 0);
     }
 
-    // MÉTODO MODIFICADO:
+    
     public void iniciarEjecucion(long tiempoActual) {
         if (estado == EstadoProceso.LISTO || estado == EstadoProceso.NUEVO) {
             estado = EstadoProceso.EJECUTANDO;
 
-            // Si es la primera vez que se ejecuta, calcular tiempo de respuesta
+            
             if (tiempoRespuesta == -1) {
                 tiempoRespuesta = (int) (tiempoActual - tiempoLlegada);
                 tiempoInicioEjecucion = tiempoActual;
@@ -75,10 +75,8 @@ public class Proceso {
         }
     }
 
-    // NUEVOS MÉTODOS AGREGADOS:
-    /**
-     * Marca que el proceso comenzó a ejecutarse por primera vez
-     */
+    
+    
     public void marcarInicioEjecucion(int tiempoActual) {
         if (!yaComenzo) {
             this.tiempoInicioReal = tiempoActual;
@@ -87,17 +85,13 @@ public class Proceso {
         }
     }
 
-    /**
-     * Marca que el proceso terminó completamente
-     */
+    
     public void marcarFinalizacion(int tiempoActual) {
         this.tiempoFinalizacionReal = tiempoActual;
         System.out.println("🏁 Proceso " + this.getId() + " terminó en t=" + tiempoActual);
     }
 
-    /**
-     * Reinicia los tiempos para una nueva simulación
-     */
+    
     public void reiniciarTiempos() {
         this.tiempoInicioReal = -1;
         this.tiempoFinalizacionReal = -1;
@@ -121,19 +115,19 @@ public class Proceso {
         quantumRestante = quantum;
         int tiempoAEjecutar = Math.min(quantum, tiempoRestante);
 
-        // Simular ejecución
+        
         try {
             Thread.sleep(tiempoAEjecutar);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
 
-        // Actualizar tiempos
+        
         tiempoEjecutado += tiempoAEjecutar;
         tiempoRestante -= tiempoAEjecutar;
         quantumRestante -= tiempoAEjecutar;
 
-        // Verificar si terminó
+        
         if (tiempoRestante <= 0) {
             finalizar(tiempoActual + tiempoAEjecutar);
             return true;
@@ -192,7 +186,7 @@ public class Proceso {
         return estado == EstadoProceso.ESPERANDO;
     }
 
-    // GETTERS MODIFICADOS PARA CÁLCULOS CORRECTOS:
+    
     public int getId() {
         return id;
     }
@@ -213,35 +207,26 @@ public class Proceso {
         return tiempoLlegada;
     }
 
-    /**
-     * Calcula el tiempo de espera correctamente
-     * Tiempo de espera = (Tiempo de inicio de ejecución) - (Tiempo de llegada)
-     */
+    
     public int getTiempoEspera() {
         if (tiempoInicioReal == -1) {
-            return 0; // Aún no ha comenzado
+            return 0; 
         }
         return Math.max(0, tiempoInicioReal - tiempoLlegada);
     }
 
-    /**
-     * Calcula el tiempo de respuesta correctamente
-     * Tiempo de respuesta = (Tiempo de inicio de ejecución) - (Tiempo de llegada)
-     */
+    
     public int getTiempoRespuesta() {
         if (tiempoInicioReal == -1) {
-            return -1; // Aún no ha comenzado
+            return -1; 
         }
         return Math.max(0, tiempoInicioReal - tiempoLlegada);
     }
 
-    /**
-     * Calcula el tiempo de retorno (turnaround time) correctamente
-     * Tiempo de retorno = (Tiempo de finalización) - (Tiempo de llegada)
-     */
+    
     public int getTiempoRetorno() {
         if (tiempoFinalizacionReal == -1) {
-            return 0; // Aún no ha terminado
+            return 0; 
         }
         return Math.max(0, tiempoFinalizacionReal - tiempoLlegada);
     }
@@ -282,7 +267,7 @@ public class Proceso {
         return tiempoFinalizacion;
     }
 
-    // NUEVOS GETTERS:
+    
     public int getTiempoInicioReal() {
         return tiempoInicioReal;
     }

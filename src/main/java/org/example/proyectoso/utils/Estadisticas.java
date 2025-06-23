@@ -6,43 +6,38 @@ import org.example.proyectoso.memoria.Memoria;
 import java.util.*;
 import java.text.DecimalFormat;
 
-/**
- * Clase para recopilar y mostrar estadísticas de la ejecución de procesos
- * en el sistema operativo simulado.
- */
+
 public class Estadisticas {
-    // Métricas generales
+    
     private long tiempoTotalEjecucion;
     private long tiempoInicioSimulacion;
     private long tiempoFinSimulacion;
 
-    // Métricas de procesos
+    
     private int totalProcesos;
     private int procesosTerminados;
     private int procesosBloqueados;
 
-    // Tiempos medios
+    
     private double tiempoMedioEspera;
     private double tiempoMedioRetorno;
     private double tiempoMedioRespuesta;
 
-    // Métricas de CPU
+    
     private double utilizacionCPU;
     private int cambiosContexto;
     private Map<Core, Integer> procesosAtendidosPorCore;
 
-    // Métricas de memoria
+    
     private double utilizacionMediaMemoria;
     private int pageFaults;
     private int swappingOperations;
 
-    // Historial para gráficos
+    
     private List<Double> historialUtilizacionCPU;
     private List<Double> historialUtilizacionMemoria;
 
-    /**
-     * Constructor para inicializar las estadísticas
-     */
+    
     public Estadisticas() {
         tiempoTotalEjecucion = 0;
         tiempoInicioSimulacion = 0;
@@ -68,18 +63,14 @@ public class Estadisticas {
         historialUtilizacionMemoria = new ArrayList<>();
     }
 
-    /**
-     * Inicializa la recopilación de estadísticas
-     */
+    
     public void iniciar() {
         tiempoInicioSimulacion = SimuladorTiempo.getTiempoActual();
         System.out.println("📊 Iniciando recopilación de estadísticas en: " +
                 SimuladorTiempo.formatearTiempo(tiempoInicioSimulacion));
     }
 
-    /**
-     * Finaliza la recopilación de estadísticas
-     */
+    
     public void finalizar() {
         tiempoFinSimulacion = SimuladorTiempo.getTiempoActual();
         tiempoTotalEjecucion = tiempoFinSimulacion - tiempoInicioSimulacion;
@@ -87,29 +78,21 @@ public class Estadisticas {
                 SimuladorTiempo.formatearTiempo(tiempoFinSimulacion));
     }
 
-    /**
-     * Registra un cambio de contexto
-     */
+    
     public void registrarCambioContexto() {
         cambiosContexto++;
     }
 
-    /**
-     * Registra la atención de un proceso por un core
-     * @param core Core que atendió el proceso
-     */
+    
     public void registrarProcesoAtendidoPorCore(Core core) {
         procesosAtendidosPorCore.put(core, procesosAtendidosPorCore.getOrDefault(core, 0) + 1);
     }
 
-    /**
-     * Registra un proceso terminado y actualiza las métricas
-     * @param proceso Proceso que ha terminado
-     */
+    
     public void registrarProcesoTerminado(Proceso proceso) {
         procesosTerminados++;
 
-        // Acumular tiempos para calcular medias
+        
         tiempoMedioEspera = ((tiempoMedioEspera * (procesosTerminados - 1)) + proceso.getTiempoEspera()) / procesosTerminados;
         tiempoMedioRetorno = ((tiempoMedioRetorno * (procesosTerminados - 1)) + proceso.getTiempoRetorno()) / procesosTerminados;
         tiempoMedioRespuesta = ((tiempoMedioRespuesta * (procesosTerminados - 1)) + proceso.getTiempoRespuesta()) / procesosTerminados;
@@ -120,44 +103,32 @@ public class Estadisticas {
                 " | Tiempo respuesta: " + proceso.getTiempoRespuesta());
     }
 
-    /**
-     * Registra un nuevo proceso en el sistema
-     */
+    
     public void registrarNuevoProceso() {
         totalProcesos++;
     }
 
-    /**
-     * Registra un page fault
-     */
+    
     public void registrarPageFault() {
         pageFaults++;
     }
 
-    /**
-     * Registra una operación de swapping
-     */
+    
     public void registrarSwapping() {
         swappingOperations++;
     }
 
-    /**
-     * Actualiza la utilización de CPU
-     * @param porcentajeUtilizacion Porcentaje de utilización actual
-     */
+    
     public void actualizarUtilizacionCPU(double porcentajeUtilizacion) {
         utilizacionCPU = (utilizacionCPU * historialUtilizacionCPU.size() + porcentajeUtilizacion) /
                          (historialUtilizacionCPU.size() + 1);
         historialUtilizacionCPU.add(porcentajeUtilizacion);
     }
 
-    /**
-     * Actualiza la utilización de memoria
-     * @param memoria Objeto memoria para calcular utilización
-     */
+    
     public void actualizarUtilizacionMemoria(Memoria memoria) {
         try {
-            // Usar reflection para acceder a los campos privados
+            
             java.lang.reflect.Field memoriaTotalUsadaField = Memoria.class.getDeclaredField("memoriaTotalUsada");
             memoriaTotalUsadaField.setAccessible(true);
             int memoriaTotalUsada = (int) memoriaTotalUsadaField.get(memoria);
@@ -166,7 +137,7 @@ public class Estadisticas {
             tamañoTotalField.setAccessible(true);
             int tamañoTotal = (int) tamañoTotalField.get(memoria);
 
-            // Calcular porcentaje de utilización
+            
             double porcentajeUtilizacion = (double) memoriaTotalUsada / tamañoTotal;
 
             utilizacionMediaMemoria = (utilizacionMediaMemoria * historialUtilizacionMemoria.size() + porcentajeUtilizacion) /
@@ -180,9 +151,7 @@ public class Estadisticas {
         }
     }
 
-    /**
-     * Muestra un resumen de las estadísticas recopiladas
-     */
+    
     public void mostrarResumen() {
         System.out.println("\n========== RESUMEN DE ESTADÍSTICAS ==========");
         System.out.println("⏱️ Tiempo total de ejecución: " +
@@ -223,10 +192,7 @@ public class Estadisticas {
         System.out.println("===========================================");
     }
 
-    /**
-     * Genera un informe detallado de las estadísticas
-     * @return Cadena con el informe completo
-     */
+    
     public String generarInforme() {
         StringBuilder informe = new StringBuilder();
 
@@ -268,27 +234,19 @@ public class Estadisticas {
         return informe.toString();
     }
 
-    /**
-     * Formatea un valor decimal con dos decimales
-     * @param valor Valor a formatear
-     * @return Cadena formateada
-     */
+    
     private String formatearDecimal(double valor) {
         DecimalFormat df = new DecimalFormat("#,##0.00");
         return df.format(valor);
     }
 
-    /**
-     * Formatea un valor como porcentaje
-     * @param valor Valor a formatear (0-1)
-     * @return Cadena formateada como porcentaje
-     */
+    
     private String formatearPorcentaje(double valor) {
         DecimalFormat df = new DecimalFormat("0.00%");
         return df.format(valor);
     }
 
-    // Getters para acceder a las estadísticas
+    
 
     public long getTiempoTotalEjecucion() {
         return tiempoTotalEjecucion;

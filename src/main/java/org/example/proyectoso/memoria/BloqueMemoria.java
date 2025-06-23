@@ -43,7 +43,7 @@ public class BloqueMemoria {
         return !this.ocupado && !otro.ocupado && this.esAdyacente(otro);
     }
 
-    // Getters
+    
     public int getInicio() {
         return inicio;
     }
