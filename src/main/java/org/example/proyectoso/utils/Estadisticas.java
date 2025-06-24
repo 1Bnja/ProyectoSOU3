@@ -23,7 +23,8 @@ public class Estadisticas {
             int tiempoActual,
             long tiempoInicioSimulacion,
             String algoritmoUtilizado,
-            int quantumUtilizado) {
+            int quantumUtilizado,
+            int numCores) {
 
         try {
             LocalDateTime ahora = LocalDateTime.now();
@@ -170,7 +171,7 @@ public class Estadisticas {
         writer.write("Tiempo total de simulación: " + tiempoActual + " unidades\n");
         writer.write("Duración real: " + calcularDuracionReal(tiempoInicioSimulacion) + "\n");
         writer.write("Total de procesos: " + procesos.size() + "\n");
-        writer.write("Cores utilizados: 6\n");
+        writer.write("Cores utilizados:" + numCores +"\n");
 
         if (memoria != null) {
             writer.write("Memoria total: " + memoria.getTamañoTotal() + " MB\n");

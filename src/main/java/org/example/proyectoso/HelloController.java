@@ -1018,7 +1018,8 @@ public class HelloController implements Initializable {
                 tiempoActual,
                 tiempoInicioSimulacion,
                 algoritmoUtilizado,
-                quantumUtilizado
+                quantumUtilizado,
+                numCores
         );
     }
 
