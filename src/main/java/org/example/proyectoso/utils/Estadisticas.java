@@ -40,7 +40,7 @@ public class Estadisticas {
 
             // Secciones del reporte
             escribirInformacionGeneral(writer, algoritmoUtilizado, quantumUtilizado,
-                    tiempoActual, tiempoInicioSimulacion, procesos, memoria);
+                    tiempoActual, tiempoInicioSimulacion, procesos, memoria, numCores);
 
             escribirEstadisticasPorProceso(writer, procesos);
 
@@ -155,7 +155,7 @@ public class Estadisticas {
                                                    int tiempoActual,
                                                    long tiempoInicioSimulacion,
                                                    List<Proceso> procesos,
-                                                   Memoria memoria) throws IOException {
+                                                   Memoria memoria, int numCores) throws IOException {
         LocalDateTime ahora = LocalDateTime.now();
         DateTimeFormatter formatoCompleto = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
 
