@@ -78,6 +78,7 @@ public class HelloController implements Initializable {
     private CPU cpu;
     private ManejoProcesos manejoProcesos;
     private Planificacion planificador;
+    private int numCores = 6;
 
     
     private Memoria memoria;
@@ -218,7 +219,7 @@ public class HelloController implements Initializable {
 
     private void inicializarSistemaProcesamiento() {
         
-        cpu = new CPU(6);
+        cpu = new CPU(numCores);
 
         
         memoria = new Memoria(2048);
@@ -250,7 +251,7 @@ public class HelloController implements Initializable {
                     cpu.setQuantumRoundRobin(quantum);
                     System.out.println("⚙️ Round Robin configurado con quantum: " + quantum + "ms");
                 } catch (Exception e) {
-                    cpu.setQuantumRoundRobin(100); 
+                    cpu.setQuantumRoundRobin(100);
                     System.out.println("⚙️ Round Robin configurado con quantum por defecto: 100ms");
                 }
                 break;
@@ -272,7 +273,7 @@ public class HelloController implements Initializable {
             gridGantt.add(tiempoLabel, t, 0);
         }
 
-        for (int core = 0; core < 6; core++) {
+        for (int core = 0; core < numCores; core++) {
             
             Label coreLabel = new Label("C" + core);
             coreLabel.setPrefSize(30, 30);
@@ -592,7 +593,7 @@ public class HelloController implements Initializable {
                                 tiempoRestanteProceso.get(p2)
                         ));
 
-                        for (int coreId = 0; coreId < 6 && !procesosListos.isEmpty(); coreId++) {
+                        for (int coreId = 0; coreId < numCores && !procesosListos.isEmpty(); coreId++) {
                             if (!procesosEnCores.containsKey(coreId)) {
                                 Proceso proceso = procesosListos.remove(0);
                                 procesosEnCores.put(coreId, proceso);
@@ -699,7 +700,7 @@ public class HelloController implements Initializable {
                 Integer.parseInt(txtQuantum.getText().isEmpty() ? "100" : txtQuantum.getText()) : 0;
 
 
-        
+
         if ("Round Robin".equals(comboAlgoritmo.getValue())) {
             try {
                 long v = Long.parseLong(txtTime.getText());
@@ -707,23 +708,23 @@ public class HelloController implements Initializable {
                     STEP_DELAY_MS = v;
                 }
             } catch (Exception ignored) {
-                STEP_DELAY_MS = 500; 
+                STEP_DELAY_MS = 500;
             }
         } else {
-            STEP_DELAY_MS = 200; 
+            STEP_DELAY_MS = 200;
         }
 
         corriendo = true;
         pausado = false;
         tiempoActual = 0;
 
-        
+
         tiempoActual = 0;
 
-        
+
         Platform.runLater(this::prepararGantt);
 
-        
+
         ejecutarSimulacionParalela();
 
         System.out.println("🚀 Simulación paralela iniciada con " + procesos.size() + " procesos");
@@ -945,7 +946,7 @@ public class HelloController implements Initializable {
         }
 
         StringBuilder sb = new StringBuilder();
-        sb.append(proceso.getNombre()); 
+        sb.append(proceso.getNombre());
         
         switch (proceso.getEstado()) {
             case NUEVO:

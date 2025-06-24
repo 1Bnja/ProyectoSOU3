@@ -1,0 +1,71 @@
+================================================================================
+           REPORTE DE ESTADÍSTICAS DE SIMULACIÓN
+================================================================================
+
+INFORMACIÓN GENERAL
+--------------------------------------------------
+Fecha y hora: 23/06/2025 20:16:23
+Algoritmo utilizado: Round Robin
+Quantum: 30 ms
+Tiempo total de simulación: 6 unidades
+Duración real: 3,05 segundos
+Total de procesos: 2
+Cores utilizados: 6
+Memoria total: 2048 MB
+
+ESTADÍSTICAS POR PROCESO
+--------------------------------------------------
+ID   Nombre               Llegada  Burst    Memoria  T.Inicio   T.Fin      T.Espera   T.Retorno  Estado  
+--------------------------------------------------------------------------------------------------------------
+1    tralalero tralala    1        45       412      1          -1         0          0          EJECUTANDO
+2    tung tung sahur      2        67       523      -1         -1         0          0          LISTO   
+
+VERIFICACIÓN DEL ALGORITMO SJF
+--------------------------------------------------
+Análisis del orden de ejecución por SJF:
+
+Procesos que llegaron individualmente:
+
+ESTADÍSTICAS DE RENDIMIENTO
+--------------------------------------------------
+Procesos completados: 0 / 2
+Porcentaje completado: 0%
+Tiempo promedio de espera: 0 unidades
+Tiempo promedio de respuesta: 0 unidades
+Tiempo promedio de retorno: 0 unidades
+Throughput: 0 procesos/unidad tiempo
+Eficiencia del sistema: 0%
+
+ESTADÍSTICAS DE MEMORIA
+--------------------------------------------------
+Memoria total: 2048 MB
+Memoria usada: 935 MB
+Memoria libre: 1113 MB
+Porcentaje de uso: 45,65%
+Procesos en swap: 0
+Memoria en swap: 0 MB
+Bloques libres: 1
+Fragmentación: NO
+
+ESTADÍSTICAS DE CPU
+--------------------------------------------------
+Número de cores: 1
+Cores libres: 1
+Cores ocupados: 0
+Uso promedio de CPU: 0%
+Procesos ejecutados: 0
+
+Estado por core:
+  Core 0: LIBRE - Uso: 0%
+
+RESUMEN FINAL Y ANÁLISIS
+--------------------------------------------------
+
+ANÁLISIS DEL ALGORITMO Round Robin:
+Tiempo de espera promedio: 0 unidades
+Procesos que tuvieron que esperar: 0
+Eficiencia del algoritmo Round Robin: 0%
+
+================================================================================
+Fin del reporte
+================================================================================
