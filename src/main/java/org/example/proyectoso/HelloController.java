@@ -59,7 +59,12 @@ public class HelloController implements Initializable {
     @FXML private AnchorPane ramContainer;
     @FXML private AnchorPane discoContainer;
 
-    
+
+    @FXML
+    private ComboBox<String> comboCores;
+
+
+
     private ObservableList<Proceso> procesos;
     private final List<Color> coloresDisponibles = new ArrayList<>(Arrays.asList(
             Color.RED, Color.BLUE, Color.GREEN, Color.ORANGE, Color.PURPLE
@@ -113,6 +118,17 @@ public class HelloController implements Initializable {
         
         comboAlgoritmo.getItems().addAll("SJF", "Round Robin");
         comboAlgoritmo.setValue("SJF");
+
+        comboCores.getItems().addAll("1 Core", "2 Cores", "4 Cores", "6 Cores");
+        comboCores.setValue("6 Cores"); // Valor por defecto
+
+        comboCores.setOnAction(event -> {
+            String seleccionado = comboCores.getValue();
+            System.out.println("Cores seleccionados: " + seleccionado);
+
+            // Actualizar numCores basado en la selección
+            actualizarNumCores(seleccionado);
+        });
 
         comboAlgoritmo.setOnAction(event -> {
             String seleccionado = comboAlgoritmo.getValue();
@@ -262,9 +278,9 @@ public class HelloController implements Initializable {
 
     private void generarGanttVacio() {
         gridGantt.getChildren().clear();
-        int tiempoTotal = 1000; 
+        int tiempoTotal = 1000;
 
-        celdasGantt = new Rectangle[6][tiempoTotal]; 
+        celdasGantt = new Rectangle[numCores][tiempoTotal];
 
         for (int t = 0; t < tiempoTotal; t++) {
             Label tiempoLabel = new Label("t" + t);
@@ -1005,4 +1021,42 @@ public class HelloController implements Initializable {
                 quantumUtilizado
         );
     }
+
+    private void actualizarNumCores(String seleccion) {
+        switch (seleccion) {
+            case "1 Core":
+                numCores = 1;
+                break;
+            case "2 Cores":
+                numCores = 2;
+                break;
+            case "4 Cores":
+                numCores = 4;
+                break;
+            case "6 Cores":
+                numCores = 6;
+                break;
+            default:
+                numCores = 6; // Por defecto
+                break;
+        }
+
+        System.out.println("🔧 Configuración actualizada: " + numCores + " cores");
+
+        // Solo actualizar si no está corriendo una simulación
+        if (!corriendo) {
+            actualizarSistemaConNuevosCores();
+        }
+    }
+
+    private void actualizarSistemaConNuevosCores() {
+        // Reinicializar CPU con el nuevo número de cores
+        cpu = new CPU(numCores);
+
+        // Regenerar el diagrama de Gantt con el nuevo número de cores
+        generarGanttVacio();
+
+        System.out.println("✅ Sistema actualizado con " + numCores + " cores");
+    }
+
 }

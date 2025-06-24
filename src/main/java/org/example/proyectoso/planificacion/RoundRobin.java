@@ -101,7 +101,7 @@ public class RoundRobin extends Planificacion {
         }
     }
 
-    
+
     private void ejecutarProcesoParcialRR(Proceso proceso, int tiempoEjecucion) {
         if (proceso == null || proceso.haTerminado() || tiempoEjecucion <= 0) {
             return;
@@ -113,30 +113,37 @@ public class RoundRobin extends Planificacion {
         }
 
         try {
-            proceso.setEstado(EstadoProceso.EJECUTANDO);
-            core.asignarProceso(proceso);
-            System.out.println("▶️ RR ejecutando proceso " + proceso.getId() + " por " + tiempoEjecucion + "ms (Restante: " + proceso.getTiempoRestante() + "ms)");
-
-            int ejecutado = 0;
-            while (ejecutado < tiempoEjecucion && !proceso.haTerminado() && ejecutando && !pausado) {
-                int paso = Math.min(10, tiempoEjecucion - ejecutado);
-                try {
-                    Thread.sleep(paso);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    break;
-                }
-                proceso.ejecutar(paso, System.currentTimeMillis());
-                ejecutado += paso;
+            // Marcar inicio si es la primera vez
+            if (!proceso.yaComenzo()) {
+                proceso.marcarInicioEjecucion((int) System.currentTimeMillis());
             }
 
-            if (proceso.haTerminado()) {
+            proceso.setEstado(EstadoProceso.EJECUTANDO);
+            core.asignarProceso(proceso);
+
+            System.out.println("▶️ RR ejecutando proceso " + proceso.getId() +
+                    " por " + tiempoEjecucion + "ms (Restante: " +
+                    proceso.getTiempoRestante() + "ms)");
+
+            // Usar el nuevo método que no simula delay
+            boolean terminado = proceso.ejecutarQuantumSinDelay(tiempoEjecucion, System.currentTimeMillis());
+
+            // Simular el paso del tiempo UNA SOLA VEZ
+            try {
+                Thread.sleep(tiempoEjecucion);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return;
+            }
+
+            if (terminado) {
                 proceso.setEstado(EstadoProceso.TERMINADO);
                 System.out.println("✅ Proceso " + proceso.getId() + " completado");
             } else {
                 proceso.setEstado(EstadoProceso.LISTO);
-                System.out.println("⏸️ Proceso " + proceso.getId() + " suspendido");
+                System.out.println("⏸️ Proceso " + proceso.getId() + " suspendido (quantum agotado)");
             }
+
         } finally {
             core.liberarCore();
         }

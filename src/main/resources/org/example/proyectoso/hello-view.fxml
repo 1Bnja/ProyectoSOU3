@@ -29,6 +29,7 @@
             <Button fx:id="btnPause" onAction="#onPauseClicked" prefHeight="40.0" prefWidth="100.0" text="PAUSE"><HBox.margin><Insets left="20.0" top="30.0" /></HBox.margin></Button>
             <Button fx:id="btnStop" onAction="#onStopClicked" prefHeight="40.0" prefWidth="100.0" text="STOP"><HBox.margin><Insets left="20.0" top="30.0" /></HBox.margin></Button>
             <Button fx:id="btnRetry" onAction="#onRetryClicked" prefHeight="40.0" prefWidth="100.0" text="RETRY"><HBox.margin><Insets left="20.0" top="30.0" /></HBox.margin></Button>
+            <ComboBox fx:id="comboCores" prefHeight="40.0" prefWidth="100.0" promptText="6 Cores"><HBox.margin><Insets left="20.0" top="30.0" /></HBox.margin></ComboBox>
          </children>
       </HBox>
 
@@ -89,9 +90,6 @@
             </VBox>
          </children>
       </VBox>
-
-      <!-- TABLA DE COLAS DE PROCESOS -->
-      <!-- CAMBIO EN FXML: Reemplazar la sección de la tabla de colas con esto: -->
 
       <!-- TABLA DE COLAS DE PROCESOS -->
       <HBox layoutX="14.0" layoutY="449.0" prefHeight="180.0" prefWidth="920.0" style="-fx-border-color: black;">
