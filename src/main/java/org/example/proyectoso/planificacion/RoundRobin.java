@@ -112,9 +112,7 @@ public class RoundRobin extends Planificacion {
             return;
         }
 
-        try {
-            // Marcar inicio si es la primera vez
-            if (!proceso.yaComenzo()) {
+        try {            if (!proceso.yaComenzo()) {
                 proceso.marcarInicioEjecucion((int) System.currentTimeMillis());
             }
 
@@ -123,13 +121,7 @@ public class RoundRobin extends Planificacion {
 
             System.out.println("▶️ RR ejecutando proceso " + proceso.getId() +
                     " por " + tiempoEjecucion + "ms (Restante: " +
-                    proceso.getTiempoRestante() + "ms)");
-
-            // Usar el nuevo método que no simula delay
-            boolean terminado = proceso.ejecutarQuantumSinDelay(tiempoEjecucion, System.currentTimeMillis());
-
-            // Simular el paso del tiempo UNA SOLA VEZ
-            try {
+                    proceso.getTiempoRestante() + "ms)");            boolean terminado = proceso.ejecutarQuantumSinDelay(tiempoEjecucion, System.currentTimeMillis());            try {
                 Thread.sleep(tiempoEjecucion);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();

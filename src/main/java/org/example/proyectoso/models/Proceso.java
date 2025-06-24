@@ -273,25 +273,14 @@ public class Proceso {
         return Integer.hashCode(id);
     }
 
-    // Agregar estos métodos a la clase Proceso.java
 
-    /**
-     * Ejecuta el proceso por un quantum específico sin simular delay
-     * Usado específicamente para Round Robin
-     */
     public boolean ejecutarQuantumSinDelay(int quantum, long tiempoActual) {
         if (estado != EstadoProceso.EJECUTANDO) {
             return false;
         }
 
-        int tiempoAEjecutar = Math.min(quantum, tiempoRestante);
-
-        // Actualizar tiempos sin Thread.sleep
-        tiempoEjecutado += tiempoAEjecutar;
-        tiempoRestante -= tiempoAEjecutar;
-
-        // Verificar si terminó
-        if (tiempoRestante <= 0) {
+        int tiempoAEjecutar = Math.min(quantum, tiempoRestante);        tiempoEjecutado += tiempoAEjecutar;
+        tiempoRestante -= tiempoAEjecutar;        if (tiempoRestante <= 0) {
             finalizar(tiempoActual + tiempoAEjecutar);
             return true;
         }

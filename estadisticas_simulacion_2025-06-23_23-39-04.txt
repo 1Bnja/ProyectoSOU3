@@ -1,0 +1,90 @@
+================================================================================
+           REPORTE DE ESTADÍSTICAS DE SIMULACIÓN
+================================================================================
+
+INFORMACIÓN GENERAL
+--------------------------------------------------
+Fecha y hora: 23/06/2025 23:39:04
+Algoritmo utilizado: Round Robin
+Quantum: 100 ms
+Tiempo total de simulación: 101 unidades
+Duración real: 58,93 segundos
+Total de procesos: 6
+Cores utilizados:6
+Memoria total: 2048 MB
+
+ESTADÍSTICAS POR PROCESO
+--------------------------------------------------
+ID   Nombre               Llegada  Burst    Memoria  T.Inicio   T.Fin      T.Espera   T.Retorno  Estado  
+--------------------------------------------------------------------------------------------------------------
+1    tralalero tralala    1        45       412      1          46         0          45         TERMINADO
+2    tung tung sahur      2        67       523      2          69         0          67         TERMINADO
+3    bombarido crocodilo  6        23       367      6          29         0          23         TERMINADO
+4    capuccion assasino   10       81       448      -1         -1         0          0          LISTO   
+5    br br patatim        15       34       298      15         49         0          34         TERMINADO
+6    asdds                1        100      300      1          101        0          100        TERMINADO
+
+VERIFICACIÓN DEL ALGORITMO SJF
+--------------------------------------------------
+Análisis del orden de ejecución por SJF:
+
+Procesos que llegaron en t=1:
+  Orden esperado (SJF): P1(burst=45) → P6(burst=100)
+  Orden real ejecutado: P1(inicio=1) → P6(inicio=1)
+  ✓ SJF implementado correctamente: SÍ
+
+Procesos que llegaron individualmente:
+  P2 (llegada=2, burst=67, inicio=2, espera=0)
+  P3 (llegada=6, burst=23, inicio=6, espera=0)
+  P5 (llegada=15, burst=34, inicio=15, espera=0)
+
+ESTADÍSTICAS DE RENDIMIENTO
+--------------------------------------------------
+Procesos completados: 5 / 6
+Porcentaje completado: 83,33%
+Tiempo promedio de espera: 0 unidades
+Tiempo promedio de respuesta: 0 unidades
+Tiempo promedio de retorno: 53,8 unidades
+Throughput: 0,05 procesos/unidad tiempo
+Eficiencia del sistema: 44,39%
+
+ESTADÍSTICAS DE MEMORIA
+--------------------------------------------------
+Memoria total: 2048 MB
+Memoria usada: 448 MB
+Memoria libre: 1600 MB
+Porcentaje de uso: 21,88%
+Procesos en swap: 0
+Memoria en swap: 0 MB
+Bloques libres: 2
+Fragmentación: SÍ
+
+ESTADÍSTICAS DE CPU
+--------------------------------------------------
+Número de cores: 6
+Cores libres: 6
+Cores ocupados: 0
+Uso promedio de CPU: 0%
+Procesos ejecutados: 0
+
+Estado por core:
+  Core 0: LIBRE - Uso: 0%
+  Core 1: LIBRE - Uso: 0%
+  Core 2: LIBRE - Uso: 0%
+  Core 3: LIBRE - Uso: 0%
+  Core 4: LIBRE - Uso: 0%
+  Core 5: LIBRE - Uso: 0%
+
+RESUMEN FINAL Y ANÁLISIS
+--------------------------------------------------
+Proceso más rápido: P3 (bombarido crocodilo) - 23 unidades
+Proceso más lento: P6 (asdds) - 100 unidades
+
+ANÁLISIS DEL ALGORITMO Round Robin:
+Tiempo de espera promedio: 0 unidades
+Procesos que tuvieron que esperar: 0
+Eficiencia del algoritmo Round Robin: 44,39%
+
+================================================================================
+Fin del reporte
+================================================================================

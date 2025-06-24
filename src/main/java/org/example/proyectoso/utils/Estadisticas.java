@@ -31,15 +31,9 @@ public class Estadisticas {
             DateTimeFormatter formato = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss");
             String nombreArchivo = "estadisticas_simulacion_" + formato.format(ahora) + ".txt";
 
-            FileWriter writer = new FileWriter(nombreArchivo);
-
-            // Encabezado
-            writer.write("=".repeat(80) + "\n");
+            FileWriter writer = new FileWriter(nombreArchivo);            writer.write("=".repeat(80) + "\n");
             writer.write("           REPORTE DE ESTADÍSTICAS DE SIMULACIÓN\n");
-            writer.write("=".repeat(80) + "\n\n");
-
-            // Secciones del reporte
-            escribirInformacionGeneral(writer, algoritmoUtilizado, quantumUtilizado,
+            writer.write("=".repeat(80) + "\n\n");            escribirInformacionGeneral(writer, algoritmoUtilizado, quantumUtilizado,
                     tiempoActual, tiempoInicioSimulacion, procesos, memoria, numCores);
 
             escribirEstadisticasPorProceso(writer, procesos);
@@ -199,10 +193,7 @@ public class Estadisticas {
                     proceso.getTiempoEspera(),
                     proceso.getTiempoRetorno(),
                     proceso.getEstado().toString()));
-        }
-
-        // Verificación del algoritmo SJF
-        writer.write("\nVERIFICACIÓN DEL ALGORITMO SJF\n");
+        }        writer.write("\nVERIFICACIÓN DEL ALGORITMO SJF\n");
         writer.write("-".repeat(50) + "\n");
         verificarSJF(writer, procesos);
         writer.write("\n");
@@ -285,8 +276,7 @@ public class Estadisticas {
                 .count();
 
         double throughput = calcularThroughput(procesos, tiempoActual);
-        double eficiencia = calcularEficiencia(procesos, tiempoActual, 6); // 6 cores
-
+        double eficiencia = calcularEficiencia(procesos, tiempoActual, 6);
         writer.write("ESTADÍSTICAS DE RENDIMIENTO\n");
         writer.write("-".repeat(50) + "\n");
         writer.write("Procesos completados: " + procesosTerminados + " / " + procesos.size() + "\n");

@@ -120,14 +120,10 @@ public class HelloController implements Initializable {
         comboAlgoritmo.setValue("SJF");
 
         comboCores.getItems().addAll("1 Core", "2 Cores", "4 Cores", "6 Cores");
-        comboCores.setValue("6 Cores"); // Valor por defecto
-
+        comboCores.setValue("6 Cores");
         comboCores.setOnAction(event -> {
             String seleccionado = comboCores.getValue();
-            System.out.println("Cores seleccionados: " + seleccionado);
-
-            // Actualizar numCores basado en la selección
-            actualizarNumCores(seleccionado);
+            System.out.println("Cores seleccionados: " + seleccionado);            actualizarNumCores(seleccionado);
         });
 
         comboAlgoritmo.setOnAction(event -> {
@@ -533,21 +529,14 @@ public class HelloController implements Initializable {
             }
         });
     }
-
-
-// MODIFICAR el método ejecutarSimulacionParalela() en HelloController.java
-// Reemplazar toda la lógica de asignación de procesos a cores con esto:
-
     private void ejecutarSimulacionParalela() {
         List<Proceso> listaProcesos = new ArrayList<>(procesos);
         String algoritmoSeleccionado = comboAlgoritmo.getValue();
 
-        // Reiniciar procesos
         for (Proceso p : listaProcesos) {
             p.reiniciarTiempos();
         }
 
-        // Limpiar mapas
         filaMapa.clear();
         nextFila = 0;
         for (Proceso p : listaProcesos) {
@@ -556,16 +545,13 @@ public class HelloController implements Initializable {
             }
         }
 
-        // Estructuras de datos
         List<Proceso> procesosPendientes = new ArrayList<>(listaProcesos);
         List<Proceso> procesosListos = new ArrayList<>();
         Map<Integer, Proceso> procesosEnCores = new HashMap<>();
         Map<Proceso, Integer> tiempoRestanteProceso = new HashMap<>();
+        Map<Integer, Integer> quantumRestantePorCore = new HashMap<>();
 
-        // NUEVAS ESTRUCTURAS PARA ROUND ROBIN
-        Map<Integer, Integer> quantumRestantePorCore = new HashMap<>(); // tiempo de quantum restante por core
-        int quantumValue = 100; // valor por defecto
-
+        int quantumValue = 100;
         if ("Round Robin".equals(algoritmoSeleccionado)) {
             try {
                 quantumValue = Integer.parseInt(txtQuantum.getText());
@@ -576,7 +562,6 @@ public class HelloController implements Initializable {
 
         final int QUANTUM = quantumValue;
 
-        // Inicializar estados
         for (Proceso p : listaProcesos) {
             actualizarEstadoProceso(p, EstadoProceso.NUEVO);
             tiempoRestanteProceso.put(p, p.getDuracion());
@@ -589,7 +574,7 @@ public class HelloController implements Initializable {
             try {
                 tiempoActual = 0;
 
-                while (corriendo && (!procesosPendientes.isEmpty() || !procesosListos.isEmpty() || !procesosEnCores.isEmpty())) {
+                while (corriendo && (!procesosPendientes.isEmpty() || !procesosListos.isEmpty() || !procesosEnCores.isEmpty() || memoria.getSwapping().getCantidadProcesos() > 0)) {
 
                     while (pausado && corriendo) {
                         Thread.sleep(100);
@@ -597,7 +582,7 @@ public class HelloController implements Initializable {
 
                     if (!corriendo) break;
 
-                    // 1. LLEGADA DE PROCESOS (igual para ambos algoritmos)
+                    // Procesar llegadas
                     procesosPendientes.removeIf(proceso -> {
                         if (proceso.getTiempoLlegada() <= tiempoActual) {
                             if (memoria.asignarMemoria(proceso)) {
@@ -615,9 +600,8 @@ public class HelloController implements Initializable {
                         return false;
                     });
 
-                    // 2. ASIGNACIÓN A CORES - DIFERENTE SEGÚN ALGORITMO
+                    // Asignar procesos a cores libres (inicial)
                     if ("SJF".equals(algoritmoSeleccionado)) {
-                        // === LÓGICA SJF (la actual) ===
                         if (!procesosListos.isEmpty()) {
                             procesosListos.sort((p1, p2) -> Integer.compare(
                                     tiempoRestanteProceso.get(p1),
@@ -636,14 +620,11 @@ public class HelloController implements Initializable {
                         }
 
                     } else if ("Round Robin".equals(algoritmoSeleccionado)) {
-                        // === LÓGICA ROUND ROBIN ===
-
-                        // Asignar nuevos procesos a cores libres
                         for (int coreId = 0; coreId < numCores && !procesosListos.isEmpty(); coreId++) {
                             if (!procesosEnCores.containsKey(coreId)) {
-                                Proceso proceso = procesosListos.remove(0); // FIFO para Round Robin
+                                Proceso proceso = procesosListos.remove(0);
                                 procesosEnCores.put(coreId, proceso);
-                                quantumRestantePorCore.put(coreId, QUANTUM); // Resetear quantum
+                                quantumRestantePorCore.put(coreId, QUANTUM);
                                 actualizarEstadoProceso(proceso, EstadoProceso.EJECUTANDO);
                                 proceso.marcarInicioEjecucion(tiempoActual);
                                 System.out.println("🔧 t=" + tiempoActual + ": Core-" + coreId + " ejecuta Proceso " + proceso.getId() + " (RR, Q=" + QUANTUM + ")");
@@ -651,14 +632,13 @@ public class HelloController implements Initializable {
                         }
                     }
 
-                    // 3. EJECUCIÓN - DIFERENTE SEGÚN ALGORITMO
+                    // Ejecutar procesos en cores
                     List<Integer> coresALiberar = new ArrayList<>();
 
                     for (Map.Entry<Integer, Proceso> entry : procesosEnCores.entrySet()) {
                         int coreId = entry.getKey();
                         Proceso proceso = entry.getValue();
 
-                        // Pintar en Gantt
                         final int finalTiempo = tiempoActual;
                         final int finalCore = coreId;
                         Platform.runLater(() -> {
@@ -666,53 +646,87 @@ public class HelloController implements Initializable {
                             pintarCeldaCore(finalCore, finalTiempo, color);
                         });
 
-                        // Ejecutar un tick
                         int tiempoRestante = tiempoRestanteProceso.get(proceso) - 1;
                         tiempoRestanteProceso.put(proceso, tiempoRestante);
 
                         if ("Round Robin".equals(algoritmoSeleccionado)) {
-                            // Decrementar quantum restante
                             int quantumRestante = quantumRestantePorCore.get(coreId) - 1;
                             quantumRestantePorCore.put(coreId, quantumRestante);
 
-                            // Verificar condiciones de finalización/interrupción
                             if (tiempoRestante <= 0) {
-                                // PROCESO TERMINADO
                                 actualizarEstadoProceso(proceso, EstadoProceso.TERMINADO);
                                 proceso.marcarFinalizacion(tiempoActual + 1);
                                 coresALiberar.add(coreId);
                                 memoria.liberarMemoria(proceso);
                                 System.out.println("✅ t=" + tiempoActual + ": Proceso " + proceso.getId() + " terminado en Core-" + coreId + " (RR)");
+                                List<Proceso> procesosRecuperados = memoria.getSwapping().procesarCola(memoria);
+                                procesosListos.addAll(procesosRecuperados);
+                                for (Proceso p : procesosRecuperados) {
+                                    actualizarEstadoProceso(p, EstadoProceso.LISTO);
+                                }
                                 actualizarVisualizacionMemoria();
 
                             } else if (quantumRestante <= 0) {
-                                // QUANTUM AGOTADO - CAMBIO DE CONTEXTO
                                 coresALiberar.add(coreId);
-                                procesosListos.add(proceso); // Volver a la cola
+                                procesosListos.add(proceso);
                                 actualizarEstadoProceso(proceso, EstadoProceso.LISTO);
                                 System.out.println("🔄 t=" + tiempoActual + ": Proceso " + proceso.getId() + " interrumpido por quantum en Core-" + coreId + " (RR)");
                             }
 
                         } else {
-                            // SJF - solo termina cuando se completa
                             if (tiempoRestante <= 0) {
                                 actualizarEstadoProceso(proceso, EstadoProceso.TERMINADO);
                                 proceso.marcarFinalizacion(tiempoActual + 1);
                                 coresALiberar.add(coreId);
                                 memoria.liberarMemoria(proceso);
                                 System.out.println("✅ t=" + tiempoActual + ": Proceso " + proceso.getId() + " terminado en Core-" + coreId + " (SJF)");
+                                List<Proceso> procesosRecuperados = memoria.getSwapping().procesarCola(memoria);
+                                procesosListos.addAll(procesosRecuperados);
+                                for (Proceso p : procesosRecuperados) {
+                                    actualizarEstadoProceso(p, EstadoProceso.LISTO);
+                                }
                                 actualizarVisualizacionMemoria();
                             }
                         }
                     }
 
-                    // 4. LIBERAR CORES
+                    // ===== PRIMERO: Liberar todos los cores =====
                     for (Integer coreId : coresALiberar) {
                         procesosEnCores.remove(coreId);
                         quantumRestantePorCore.remove(coreId);
                     }
 
-                    // Actualizar tabla y avanzar tiempo
+                    // ===== SEGUNDO: Asignar procesos LISTO a cores libres =====
+                    if ("Round Robin".equals(algoritmoSeleccionado)) {
+                        for (int core = 0; core < numCores && !procesosListos.isEmpty(); core++) {
+                            if (!procesosEnCores.containsKey(core)) {
+                                Proceso proceso = procesosListos.remove(0);
+                                procesosEnCores.put(core, proceso);
+                                quantumRestantePorCore.put(core, QUANTUM);
+                                actualizarEstadoProceso(proceso, EstadoProceso.EJECUTANDO);
+                                proceso.marcarInicioEjecucion(tiempoActual);
+                                System.out.println("🔧 t=" + tiempoActual + ": Core-" + core + " ejecuta Proceso " + proceso.getId() + " (asignación tardía RR)");
+                            }
+                        }
+                    } else { // SJF
+                        if (!procesosListos.isEmpty()) {
+                            procesosListos.sort((p1, p2) -> Integer.compare(
+                                    tiempoRestanteProceso.get(p1),
+                                    tiempoRestanteProceso.get(p2)
+                            ));
+
+                            for (int core = 0; core < numCores && !procesosListos.isEmpty(); core++) {
+                                if (!procesosEnCores.containsKey(core)) {
+                                    Proceso proceso = procesosListos.remove(0);
+                                    procesosEnCores.put(core, proceso);
+                                    actualizarEstadoProceso(proceso, EstadoProceso.EJECUTANDO);
+                                    proceso.marcarInicioEjecucion(tiempoActual);
+                                    System.out.println("🔧 t=" + tiempoActual + ": Core-" + core + " ejecuta Proceso " + proceso.getId() + " (asignación tardía SJF)");
+                                }
+                            }
+                        }
+                    }
+
                     actualizarTablaColas();
                     tiempoActual++;
                     Thread.sleep(STEP_DELAY_MS);
@@ -724,6 +738,22 @@ public class HelloController implements Initializable {
                 Platform.runLater(() -> {
                     corriendo = false;
                     actualizarTablaColas();
+
+                    // Validación final
+                    boolean todosTerminados = true;
+                    for (Proceso p : listaProcesos) {
+                        if (p.getEstado() != EstadoProceso.TERMINADO) {
+                            todosTerminados = false;
+                            System.out.println("⚠️ Proceso " + p.getId() + " no terminó - Estado: " + p.getEstado());
+                        }
+                    }
+
+                    if (todosTerminados) {
+                        System.out.println("✅ TODOS los procesos terminaron correctamente");
+                    } else {
+                        System.out.println("❌ ERROR: No todos los procesos terminaron correctamente");
+                    }
+
                     System.out.println("🏁 Simulación terminada en t=" + tiempoActual + " (" + algoritmoSeleccionado + ")");
                     generarArchivoEstadisticas();
                 });
@@ -733,7 +763,6 @@ public class HelloController implements Initializable {
         simulacionThread.setDaemon(true);
         simulacionThread.start();
     }
-
     @FXML
     private void onStartClicked() {
         if (cpu != null) {
@@ -1082,24 +1111,15 @@ public class HelloController implements Initializable {
                 numCores = 6;
                 break;
             default:
-                numCores = 6; // Por defecto
-                break;
+                numCores = 6;                break;
         }
 
-        System.out.println("🔧 Configuración actualizada: " + numCores + " cores");
-
-        // Solo actualizar si no está corriendo una simulación
-        if (!corriendo) {
+        System.out.println("🔧 Configuración actualizada: " + numCores + " cores");        if (!corriendo) {
             actualizarSistemaConNuevosCores();
         }
     }
 
-    private void actualizarSistemaConNuevosCores() {
-        // Reinicializar CPU con el nuevo número de cores
-        cpu = new CPU(numCores);
-
-        // Regenerar el diagrama de Gantt con el nuevo número de cores
-        generarGanttVacio();
+    private void actualizarSistemaConNuevosCores() {        cpu = new CPU(numCores);        generarGanttVacio();
 
         System.out.println("✅ Sistema actualizado con " + numCores + " cores");
     }
