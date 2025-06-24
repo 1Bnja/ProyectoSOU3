@@ -43,7 +43,7 @@ public class BloqueMemoria {
         return !this.ocupado && !otro.ocupado && this.esAdyacente(otro);
     }
 
-    // Getters
+    
     public int getInicio() {
         return inicio;
     }
@@ -58,15 +58,6 @@ public class BloqueMemoria {
 
     public Proceso getProceso() {
         return proceso;
-    }
-
-
-    public void setTamaño(int tamaño) {
-        this.tamaño = tamaño;
-    }
-
-    public void setInicio(int inicio) {
-        this.inicio = inicio;
     }
 
 

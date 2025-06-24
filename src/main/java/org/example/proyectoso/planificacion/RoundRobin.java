@@ -3,36 +3,26 @@ package org.example.proyectoso.planificacion;
 import org.example.proyectoso.models.*;
 import java.util.*;
 
-/**
- * Implementación del algoritmo de planificación Round Robin
- * Ejecuta los procesos de manera cíclica con un quantum fijo
- */
+
 public class RoundRobin extends Planificacion {
 
-    // Quantum de tiempo para cada ejecución parcial (en ms)
+    
     private final int quantum;
     private final Object rrLock = new Object();
 
-    // Control de ejecución
+    
     private volatile boolean pausado;
     private Thread hiloEjecucion;
 
-    // Estadísticas específicas de Round Robin
+    
     private int cambiosContexto;
     private long tiempoPromedioEspera;
     private long tiempoPromedioRespuesta;
 
-    /**
-     * Constructor de Round Robin con quantum por defecto de 100ms
-     */
-    public RoundRobin() {
-        this(100);
-    }
+    
 
-    /**
-     * Constructor de Round Robin con quantum configurable
-     * @param quantum Tiempo de ejecución por turno (ms)
-     */
+
+    
     public RoundRobin(int quantum) {
         super();
         this.quantum = quantum;
@@ -75,9 +65,7 @@ public class RoundRobin extends Planificacion {
         hiloEjecucion.start();
     }
 
-    /**
-     * Implementación de Round Robin
-     */
+    
     private void ejecutarRoundRobin(List<Proceso> procesos) {
         synchronized (rrLock) {
             System.out.println("🚀 Iniciando Round Robin con " + procesos.size() + " procesos (quantum=" + quantum + "ms)");
@@ -89,7 +77,7 @@ public class RoundRobin extends Planificacion {
                     continue;
                 }
 
-                // Ejecutar por quantum o tiempo restante
+                
                 int tiempoEjecucion = Math.min(quantum, proceso.getTiempoRestante());
                 ejecutarProcesoParcialRR(proceso, tiempoEjecucion);
 
@@ -100,7 +88,7 @@ public class RoundRobin extends Planificacion {
                     procesosEjecutados++;
                 }
 
-                // Pausa breve para simular cambio de contexto
+                
                 try {
                     Thread.sleep(10);
                 } catch (InterruptedException e) {
@@ -113,9 +101,7 @@ public class RoundRobin extends Planificacion {
         }
     }
 
-    /**
-     * Ejecuta un proceso parcialmente en Round Robin
-     */
+
     private void ejecutarProcesoParcialRR(Proceso proceso, int tiempoEjecucion) {
         if (proceso == null || proceso.haTerminado() || tiempoEjecucion <= 0) {
             return;
@@ -126,39 +112,36 @@ public class RoundRobin extends Planificacion {
             return;
         }
 
-        try {
-            proceso.setEstado(EstadoProceso.EJECUTANDO);
-            core.asignarProceso(proceso);
-            System.out.println("▶️ RR ejecutando proceso " + proceso.getId() + " por " + tiempoEjecucion + "ms (Restante: " + proceso.getTiempoRestante() + "ms)");
-
-            int ejecutado = 0;
-            while (ejecutado < tiempoEjecucion && !proceso.haTerminado() && ejecutando && !pausado) {
-                int paso = Math.min(10, tiempoEjecucion - ejecutado);
-                try {
-                    Thread.sleep(paso);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    break;
-                }
-                proceso.ejecutar(paso, System.currentTimeMillis());
-                ejecutado += paso;
+        try {            if (!proceso.yaComenzo()) {
+                proceso.marcarInicioEjecucion((int) System.currentTimeMillis());
             }
 
-            if (proceso.haTerminado()) {
+            proceso.setEstado(EstadoProceso.EJECUTANDO);
+            core.asignarProceso(proceso);
+
+            System.out.println("▶️ RR ejecutando proceso " + proceso.getId() +
+                    " por " + tiempoEjecucion + "ms (Restante: " +
+                    proceso.getTiempoRestante() + "ms)");            boolean terminado = proceso.ejecutarQuantumSinDelay(tiempoEjecucion, System.currentTimeMillis());            try {
+                Thread.sleep(tiempoEjecucion);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return;
+            }
+
+            if (terminado) {
                 proceso.setEstado(EstadoProceso.TERMINADO);
                 System.out.println("✅ Proceso " + proceso.getId() + " completado");
             } else {
                 proceso.setEstado(EstadoProceso.LISTO);
-                System.out.println("⏸️ Proceso " + proceso.getId() + " suspendido");
+                System.out.println("⏸️ Proceso " + proceso.getId() + " suspendido (quantum agotado)");
             }
+
         } finally {
             core.liberarCore();
         }
     }
 
-    /**
-     * Calcula estadísticas de Round Robin
-     */
+    
     private void calcularEstadisticas(List<Proceso> procesos) {
         List<Proceso> terminados = procesos.stream().filter(Proceso::haTerminado).toList();
         if (!terminados.isEmpty()) {
@@ -236,31 +219,4 @@ public class RoundRobin extends Planificacion {
         }
     }
 
-    public int getQuantum() {
-        return quantum;
-    }
-
-    public boolean isPausado() {
-        synchronized (rrLock) {
-            return pausado;
-        }
-    }
-
-    public int getCambiosContexto() {
-        synchronized (rrLock) {
-            return cambiosContexto;
-        }
-    }
-
-    public long getTiempoPromedioEspera() {
-        synchronized (rrLock) {
-            return tiempoPromedioEspera;
-        }
-    }
-
-    public long getTiempoPromedioRespuesta() {
-        synchronized (rrLock) {
-            return tiempoPromedioRespuesta;
-        }
-    }
 }

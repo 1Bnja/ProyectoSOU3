@@ -1,5 +1,4 @@
 package org.example.proyectoso;
-
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
@@ -7,20 +6,26 @@ import javafx.fxml.Initializable;
 import javafx.application.Platform;
 import javafx.scene.control.*;
 import javafx.scene.layout.GridPane;
-import javafx.scene.layout.VBox;
+import javafx.scene.layout.AnchorPane;
+import javafx.scene.layout.HBox;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
-import org.example.proyectoso.models.Proceso;
+import org.example.proyectoso.models.*;
+import org.example.proyectoso.planificacion.*;
+import org.example.proyectoso.memoria.*;
 import javafx.scene.control.TableRow;
 import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Map;
-
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.net.URL;
 import java.util.ResourceBundle;
+import javafx.scene.control.cell.PropertyValueFactory;
+import org.example.proyectoso.utils.Estadisticas;
+
 
 public class HelloController implements Initializable {
 
@@ -30,6 +35,10 @@ public class HelloController implements Initializable {
     private TextField txtQuantum;
     @FXML
     private TextField txtTime;
+    @FXML
+    private Label lblQuantum;
+    @FXML
+    private Label lblTime;
     @FXML
     private Button btnStart, btnPause, btnStop, btnRetry, btnStats, btnAdd, btnRemove;
 
@@ -47,59 +56,98 @@ public class HelloController implements Initializable {
     @FXML
     private GridPane gridGantt;
 
-    @FXML private VBox ramBox;
-    @FXML private VBox discoBox;
+    @FXML private AnchorPane ramContainer;
+    @FXML private AnchorPane discoContainer;
 
-    // Lista observable de procesos y colores disponibles
+
+    @FXML
+    private ComboBox<String> comboCores;
+
+
+
     private ObservableList<Proceso> procesos;
     private final List<Color> coloresDisponibles = new ArrayList<>(Arrays.asList(
-            Color.RED, Color.BLUE, Color.GREEN, Color.ORANGE, Color.PURPLE, Color.BROWN
+            Color.RED, Color.BLUE, Color.GREEN, Color.ORANGE, Color.PURPLE
     ));
 
-    // Tabla de colas de procesos
-    @FXML
-    private TableView<?> tablaColas;
-    @FXML
-    private TableColumn<?, ?> colNuevo;
-    @FXML
-    private TableColumn<?, ?> colListo;
-    @FXML
-    private TableColumn<?, ?> colEspera;
-    @FXML
-    private TableColumn<?, ?> colTerminado;
+    
+    @FXML private TableView<FilaEstadoProcesos> tablaColas;
+    @FXML private TableColumn<FilaEstadoProcesos, String> colNuevo;
+    @FXML private TableColumn<FilaEstadoProcesos, String> colListo;
+    @FXML private TableColumn<FilaEstadoProcesos, String> colEspera;
+    @FXML private TableColumn<FilaEstadoProcesos, String> colTerminado;
 
-    // Control de simulación
-    private Thread simulacionThread;
+
+
+    
+    private CPU cpu;
+    private ManejoProcesos manejoProcesos;
+    private Planificacion planificador;
+    private int numCores = 6;
+
+    
+    private Memoria memoria;
+
+    
+    private ScheduledExecutorService scheduledExecutor;
     private volatile boolean corriendo = false;
     private volatile boolean pausado = false;
+    private int tiempoActual = 0;
 
     private Rectangle[][] celdasGantt;
+    private Map<Proceso, Integer> filaMapa = new HashMap<>();
+    private int nextFila = 0;
 
-    /** Delay between simulation steps in milliseconds */
+
+    
     private static long STEP_DELAY_MS = 200;
+
+    private ObservableList<FilaEstadoProcesos> datosTablaEstados;
+    private List<Proceso> procesosNuevo = new ArrayList<>();
+    private List<Proceso> procesosListo = new ArrayList<>();
+    private List<Proceso> procesosEspera = new ArrayList<>();
+    private List<Proceso> procesosTerminado = new ArrayList<>();
+
+    
+    private long tiempoInicioSimulacion;
+    private String algoritmoUtilizado;
+    private int quantumUtilizado;
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
-        // Setup ComboBox
+        
         comboAlgoritmo.getItems().addAll("SJF", "Round Robin");
         comboAlgoritmo.setValue("SJF");
+
+        comboCores.getItems().addAll("1 Core", "2 Cores", "4 Cores", "6 Cores");
+        comboCores.setValue("6 Cores");
+        comboCores.setOnAction(event -> {
+            String seleccionado = comboCores.getValue();
+            System.out.println("Cores seleccionados: " + seleccionado);            actualizarNumCores(seleccionado);
+        });
 
         comboAlgoritmo.setOnAction(event -> {
             String seleccionado = comboAlgoritmo.getValue();
             System.out.println("Algoritmo seleccionado: " + seleccionado);
+
+            
+            actualizarVisibilidadCampos(seleccionado);
         });
 
-        // Configurar columnas usando propiedades del Proceso
+        
+        actualizarVisibilidadCampos("SJF");
+
+        
         colProceso.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(data.getValue().getNombre()));
         colLlegada.setCellValueFactory(data -> new javafx.beans.property.SimpleIntegerProperty(data.getValue().getTiempoLlegada()).asObject());
         colBurst.setCellValueFactory(data -> new javafx.beans.property.SimpleIntegerProperty(data.getValue().getDuracion()).asObject());
         colMemoria.setCellValueFactory(data -> new javafx.beans.property.SimpleIntegerProperty(data.getValue().getTamanoMemoria()).asObject());
 
-        // Lista de procesos
+        
         procesos = FXCollections.observableArrayList();
         tablaProcesos.setItems(procesos);
 
-        // Colorear filas según el color del proceso
+        
         tablaProcesos.setRowFactory(tv -> new TableRow<>() {
             @Override
             protected void updateItem(Proceso item, boolean empty) {
@@ -119,15 +167,116 @@ public class HelloController implements Initializable {
             }
         });
 
+        
+        inicializarSistemaProcesamiento();
+
+        
+        crearProcesosPredefinidos();
+
         generarGanttVacio();
         poblarMemorias();
+        poblarMemorias();
+        inicializarTablaColas(); 
+
+    }
+
+    
+    private void crearProcesosPredefinidos() {
+        
+        String[] nombres = {
+                "tralalero tralala",
+                "tung tung sahur",
+                "bombarido crocodilo",
+                "capuccion assasino",
+                "br br patatim"
+        };
+
+        
+        int[] tiemposLlegada = {1, 2, 6, 10, 15};
+
+        
+        int[] cpuBursts = {45, 67, 23, 81, 34};
+
+        
+        int[] tamañosMemoria = {412, 523, 367, 448, 298}; 
+
+        
+        for (int i = 0; i < 5; i++) {
+            Proceso proceso = new Proceso(
+                    nombres[i],
+                    cpuBursts[i],
+                    tamañosMemoria[i],
+                    tiemposLlegada[i]
+            );
+
+            
+            if (!coloresDisponibles.isEmpty()) {
+                Color color = coloresDisponibles.remove(0);
+                proceso.setColor(color);
+            }
+
+            procesos.add(proceso);
+        }
+
+        System.out.println("✨ 5 procesos predefinidos creados:");
+        for (int i = 0; i < procesos.size(); i++) {
+            Proceso p = procesos.get(i);
+            System.out.printf("   %d. %s - Llegada: t%d, Burst: %d, RAM: %dMB%n",
+                    i+1, p.getNombre(), p.getTiempoLlegada(), p.getDuracion(), p.getTamanoMemoria());
+        }
+        System.out.printf("   Total RAM: %dMB%n",
+                procesos.stream().mapToInt(Proceso::getTamanoMemoria).sum());
+    }
+
+
+    private void inicializarSistemaProcesamiento() {
+        
+        cpu = new CPU(numCores);
+
+        
+        memoria = new Memoria(2048);
+
+        
+        manejoProcesos = new ManejoProcesos();
+
+        
+        configurarPlanificador();
+
+        
+        scheduledExecutor = Executors.newScheduledThreadPool(2);
+
+        System.out.println("🔧 Sistema de procesamiento inicializado (5 cores)");
+    }
+
+    private void configurarPlanificador() {
+        String algoritmo = comboAlgoritmo.getValue();
+
+        switch (algoritmo) {
+            case "SJF":
+                planificador = new SJF();
+                cpu.setAlgoritmo(CPU.TipoAlgoritmo.SJF);
+                System.out.println("⚙️ SJF configurado (sin quantum)");
+                break;
+            case "Round Robin":
+                try {
+                    int quantum = Integer.parseInt(txtQuantum.getText());
+                    cpu.setQuantumRoundRobin(quantum);
+                    System.out.println("⚙️ Round Robin configurado con quantum: " + quantum + "ms");
+                } catch (Exception e) {
+                    cpu.setQuantumRoundRobin(100);
+                    System.out.println("⚙️ Round Robin configurado con quantum por defecto: 100ms");
+                }
+                break;
+        }
+
+        manejoProcesos.setPlanificador(planificador);
     }
 
     private void generarGanttVacio() {
         gridGantt.getChildren().clear();
-        int tiempoTotal = 100;
+        int tiempoTotal = 1000;
 
-        celdasGantt = new Rectangle[6][tiempoTotal];
+        celdasGantt = new Rectangle[numCores][tiempoTotal];
 
         for (int t = 0; t < tiempoTotal; t++) {
             Label tiempoLabel = new Label("t" + t);
@@ -136,37 +285,225 @@ public class HelloController implements Initializable {
             gridGantt.add(tiempoLabel, t, 0);
         }
 
-        for (int fila = 0; fila < 6; fila++) {
-            for (int col = 0; col < tiempoTotal; col++) {
+        for (int core = 0; core < numCores; core++) {
+            
+            Label coreLabel = new Label("C" + core);
+            coreLabel.setPrefSize(30, 30);
+            coreLabel.setStyle("-fx-border-color: gray; -fx-alignment: center; -fx-background-color: lightgray;");
+            gridGantt.add(coreLabel, 0, core + 1);
+
+            for (int col = 1; col < tiempoTotal; col++) {
                 Rectangle bloque = new Rectangle(30, 30);
                 bloque.setStroke(Color.GRAY);
                 bloque.setFill(Color.TRANSPARENT);
-                gridGantt.add(bloque, col, fila + 1);
-                celdasGantt[fila][col] = bloque;
+                gridGantt.add(bloque, col, core + 1);
+                celdasGantt[core][col-1] = bloque;
             }
         }
     }
 
     private void poblarMemorias() {
-        ramBox.getChildren().clear();
-        discoBox.getChildren().clear();
+        ramContainer.getChildren().clear();
+        discoContainer.getChildren().clear();
 
-        for (int i = 0; i < 4; i++) {
-            Rectangle bloque = new Rectangle(100, 30);
-            bloque.setFill(Color.LIGHTGREEN);  // Bloque RAM libre
-            bloque.setStroke(Color.BLACK);
-            ramBox.getChildren().add(bloque);
-        }
+        
+        actualizarVisualizacionMemoria();
 
-        for (int i = 0; i < 6; i++) {
-            Rectangle bloque = new Rectangle(100, 30);
-            bloque.setFill(Color.LIGHTGRAY);  // Bloque Disco libre
-            bloque.setStroke(Color.BLACK);
-            discoBox.getChildren().add(bloque);
+        System.out.println("Contenedores de memoria inicializados");
+    }
+
+    
+    private void actualizarVisibilidadCampos(String algoritmo) {
+        boolean esRoundRobin = "Round Robin".equals(algoritmo);
+
+        
+        txtQuantum.setVisible(esRoundRobin);
+        txtTime.setVisible(esRoundRobin);
+
+        
+        ocultarEtiquetasCampos(!esRoundRobin);
+
+        if (esRoundRobin) {
+            
+            if (txtQuantum.getText().isEmpty()) {
+                txtQuantum.setText("100");
+            }
+            if (txtTime.getText().isEmpty()) {
+                txtTime.setText("500");
+            }
+            System.out.println("💡 Round Robin seleccionado - Campos Quantum y Tiempo habilitados");
+        } else {
+            System.out.println("💡 SJF seleccionado - Campos Quantum y Tiempo ocultados");
         }
     }
 
-    private void prepararGantt(int tiempoTotal) {
+    
+    private void ocultarEtiquetasCampos(boolean ocultar) {
+        
+        if (txtQuantum.getParent() instanceof HBox) {
+            HBox contenedor = (HBox) txtQuantum.getParent();
+
+            contenedor.getChildren().forEach(nodo -> {
+                if (nodo instanceof Label) {
+                    Label etiqueta = (Label) nodo;
+                    String texto = etiqueta.getText();
+
+                    
+                    if ("Quantum:".equals(texto) || "t =".equals(texto)) {
+                        etiqueta.setVisible(!ocultar);
+                        etiqueta.setManaged(!ocultar); 
+                    }
+                }
+            });
+
+            
+            txtQuantum.setManaged(!ocultar);
+            txtTime.setManaged(!ocultar);
+        }
+    }
+    private void actualizarVisualizacionMemoria() {
+        Platform.runLater(() -> {
+            actualizarRAM();
+            actualizarSwapping();
+        });
+    }
+
+    
+    private void actualizarRAM() {
+        ramContainer.getChildren().clear();
+
+        if (memoria == null) return;
+
+        
+        List<org.example.proyectoso.memoria.BloqueMemoria> bloques = memoria.getBloques();
+
+        double containerHeight = ramContainer.getPrefHeight();
+        double containerWidth = ramContainer.getPrefWidth();
+        int memoriaTotal = memoria.getTamañoTotal();
+
+        double yOffset = 0;
+
+        for (org.example.proyectoso.memoria.BloqueMemoria bloque : bloques) {
+            
+            double alturaBloque = (double) bloque.getTamaño() / memoriaTotal * containerHeight;
+
+            
+            Rectangle rect = new Rectangle(containerWidth + 2, alturaBloque);
+            rect.setX(-1);
+            rect.setY(yOffset);
+            rect.setStroke(Color.BLACK);
+            rect.setStrokeWidth(0.5); 
+
+            if (bloque.isOcupado()) {
+                
+                Color colorProceso = bloque.getProceso().getColor();
+                rect.setFill(colorProceso != null ? colorProceso : Color.LIGHTBLUE);
+
+                
+                Label etiqueta = new Label("P" + bloque.getProceso().getId());
+                etiqueta.setLayoutX(containerWidth/2 - 10);
+                etiqueta.setLayoutY(yOffset + alturaBloque/2 - 8);
+                etiqueta.setStyle("-fx-font-size: 10px; -fx-font-weight: bold;");
+                ramContainer.getChildren().add(etiqueta);
+            } else {
+                
+                rect.setFill(Color.LIGHTGRAY);
+
+                
+                if (alturaBloque > 20) {
+                    Label etiqueta = new Label("LIBRE");
+                    etiqueta.setLayoutX(containerWidth/2 - 15);
+                    etiqueta.setLayoutY(yOffset + alturaBloque/2 - 8);
+                    etiqueta.setStyle("-fx-font-size: 9px;");
+                    ramContainer.getChildren().add(etiqueta);
+                }
+            }
+
+            ramContainer.getChildren().add(rect);
+            yOffset += alturaBloque;
+        }
+
+        
+        Label statsRAM = new Label(String.format("RAM: %dMB / %dMB (%.1f%%)",
+                memoria.getMemoriaUsada(), memoria.getTamañoTotal(), memoria.getPorcentajeUso()));
+        statsRAM.setLayoutX(5);
+        statsRAM.setLayoutY(containerHeight - 15);
+        statsRAM.setStyle("-fx-font-size: 8px; -fx-background-color: rgba(255,255,255,0.8); -fx-padding: 2px;");
+        ramContainer.getChildren().add(statsRAM);
+    }
+
+    
+    private void actualizarSwapping() {
+        discoContainer.getChildren().clear();
+
+        if (memoria == null) return;
+
+        
+        List<Proceso> procesosSwap = memoria.getSwapping().getProcesosEnSwapping();
+
+        double containerHeight = discoContainer.getPrefHeight();
+        double containerWidth = discoContainer.getPrefWidth();
+
+        if (procesosSwap.isEmpty()) {
+            
+            Rectangle rectVacio = new Rectangle(containerWidth + 2, containerHeight - 25);
+            rectVacio.setX(-1);
+            rectVacio.setY(0);
+            rectVacio.setFill(Color.WHITESMOKE);
+            rectVacio.setStroke(Color.GRAY);
+            rectVacio.setStrokeWidth(0.5); 
+            discoContainer.getChildren().add(rectVacio);
+
+            Label etiquetaVacio = new Label("DISCO VACÍO");
+            etiquetaVacio.setLayoutX(containerWidth/2 - 35);
+            etiquetaVacio.setLayoutY(containerHeight/2);
+            etiquetaVacio.setStyle("-fx-font-size: 10px; -fx-text-fill: gray;");
+            discoContainer.getChildren().add(etiquetaVacio);
+        } else {
+            
+            int memoriaSwapTotal = memoria.getSwapping().getMemoriaRequerida();
+            double yOffset = 0;
+            double alturaDisponible = containerHeight - 25;
+
+            for (Proceso proceso : procesosSwap) {
+                
+                double alturaProceso = Math.max(20, (double) proceso.getTamanoMemoria() / memoriaSwapTotal * alturaDisponible);
+
+                
+                Rectangle rect = new Rectangle(containerWidth + 2, alturaProceso);
+                rect.setX(-1);
+                rect.setY(yOffset);
+                rect.setStroke(Color.BLACK);
+                rect.setStrokeWidth(0.5); 
+
+                
+                Color colorProceso = proceso.getColor();
+                rect.setFill(colorProceso != null ? colorProceso.deriveColor(0, 1, 0.7, 1) : Color.LIGHTYELLOW);
+
+                
+                Label etiqueta = new Label("P" + proceso.getId() + " (" + proceso.getTamanoMemoria() + "MB)");
+                etiqueta.setLayoutX(containerWidth/2 - 40);
+                etiqueta.setLayoutY(yOffset + alturaProceso/2 - 8);
+                etiqueta.setStyle("-fx-font-size: 9px; -fx-font-weight: bold;");
+
+                discoContainer.getChildren().add(rect);
+                discoContainer.getChildren().add(etiqueta);
+
+                yOffset += alturaProceso;
+            }
+        }
+
+        
+        Label statsSwap = new Label(String.format("Swap: %d procesos (%dMB)",
+                memoria.getSwapping().getCantidadProcesos(),
+                memoria.getSwapping().getMemoriaRequerida()));
+        statsSwap.setLayoutX(5);
+        statsSwap.setLayoutY(containerHeight - 15);
+        statsSwap.setStyle("-fx-font-size: 8px; -fx-background-color: rgba(255,255,255,0.8); -fx-padding: 2px;");
+        discoContainer.getChildren().add(statsSwap);
+    }
+
+    private void prepararGantt() {
         if (celdasGantt == null) {
             generarGanttVacio();
             return;
@@ -181,150 +518,312 @@ public class HelloController implements Initializable {
         }
     }
 
-    private void pintarCelda(int fila, int columna, Color color) {
-        if (fila >= 0 && fila < celdasGantt.length &&
-                columna >= 0 && columna < celdasGantt[0].length) {
-            Rectangle r = celdasGantt[fila][columna];
-            if (r != null) {
-                r.setFill(color);
+    private void pintarCeldaCore(int coreId, int tiempoColumna, Color color) {
+        Platform.runLater(() -> {
+            if (coreId >= 0 && coreId < celdasGantt.length &&
+                    tiempoColumna >= 0 && tiempoColumna < celdasGantt[0].length) {
+                Rectangle r = celdasGantt[coreId][tiempoColumna];
+                if (r != null) {
+                    r.setFill(color);
+                }
             }
-        }
+        });
     }
-
-    private void esperar(long ms) {
-        try {
-            Thread.sleep(ms);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
-    }
-
-    private void ejecutarSimulacion() {
+    private void ejecutarSimulacionParalela() {
         List<Proceso> listaProcesos = new ArrayList<>(procesos);
-        Map<Proceso, Integer> restantes = new HashMap<>();
-        Map<Proceso, Integer> filaMapa = new HashMap<>();
-        int nextFila = 0;
+        String algoritmoSeleccionado = comboAlgoritmo.getValue();
+
         for (Proceso p : listaProcesos) {
-            restantes.put(p, p.getDuracion());
-            filaMapa.put(p, nextFila++);
+            p.reiniciarTiempos();
         }
 
-        int quantum = 1;
-        try {
-            quantum = Integer.parseInt(txtQuantum.getText());
-            if (quantum <= 0) quantum = 1;
-        } catch (Exception ignored) {}
-
-        String algoritmo = comboAlgoritmo.getValue();
-
-        int tiempoActual = 0;
-        List<Proceso> pendientes = new ArrayList<>(listaProcesos);
-        List<Proceso> colaListos = new ArrayList<>();
-
-        Platform.runLater(() -> prepararGantt(0));
-
-        while (corriendo && (!pendientes.isEmpty() || !colaListos.isEmpty() || procesos.size() > listaProcesos.size())) {
-            for (Proceso nuevo : procesos) {
-                if (!filaMapa.containsKey(nuevo)) {
-                    listaProcesos.add(nuevo);
-                    pendientes.add(nuevo);
-                    restantes.put(nuevo, nuevo.getDuracion());
-                    filaMapa.put(nuevo, nextFila++);
-                }
-            }
-            if (pausado) {
-                esperar(100);
-                continue;
-            }
-
-            // Mover procesos que ya llegaron a la cola de listos
-            int finalTiempoActual = tiempoActual;
-            pendientes.removeIf(p -> {
-                if (p.getTiempoLlegada() <= finalTiempoActual) {
-                    colaListos.add(p);
-                    return true;
-                }
-                return false;
-            });
-
-            if (colaListos.isEmpty()) {
-                tiempoActual++;
-                esperar(STEP_DELAY_MS);
-                continue;
-            }
-
-            Proceso actual;
-            if ("Round Robin".equalsIgnoreCase(algoritmo)) {
-                actual = colaListos.remove(0);
-            } else { // SJF
-                actual = colaListos.stream()
-                        .min(Comparator.comparingInt(restantes::get))
-                        .orElse(colaListos.get(0));
-                colaListos.remove(actual);
-            }
-
-            int ejecucion = "Round Robin".equalsIgnoreCase(algoritmo) ?
-                    Math.min(quantum, restantes.get(actual)) : restantes.get(actual);
-
-            for (int i = 0; i < ejecucion && corriendo; i++) {
-                while (pausado) {
-                    esperar(100);
-                }
-
-                int fila = filaMapa.get(actual);
-                int columna = tiempoActual;
-                Color color = actual.getColor() == null ? Color.LIGHTBLUE : actual.getColor();
-                Platform.runLater(() -> pintarCelda(fila, columna, color));
-
-                restantes.put(actual, restantes.get(actual) - 1);
-                tiempoActual++;
-
-                // Permitir llegada de nuevos procesos en cada unidad de tiempo
-            int finalTiempoActual1 = tiempoActual;
-            pendientes.removeIf(p -> {
-                if (p.getTiempoLlegada() <= finalTiempoActual1) {
-                    colaListos.add(p);
-                    return true;
-                }
-                return false;
-            });
-
-            esperar(STEP_DELAY_MS);
-        }
-
-            if (restantes.get(actual) > 0) {
-                colaListos.add(actual);
+        filaMapa.clear();
+        nextFila = 0;
+        for (Proceso p : listaProcesos) {
+            if (!filaMapa.containsKey(p)) {
+                filaMapa.put(p, nextFila++);
             }
         }
 
-        corriendo = false;
+        List<Proceso> procesosPendientes = new ArrayList<>(listaProcesos);
+        List<Proceso> procesosListos = new ArrayList<>();
+        Map<Integer, Proceso> procesosEnCores = new HashMap<>();
+        Map<Proceso, Integer> tiempoRestanteProceso = new HashMap<>();
+        Map<Integer, Integer> quantumRestantePorCore = new HashMap<>();
+
+        int quantumValue = 100;
+        if ("Round Robin".equals(algoritmoSeleccionado)) {
+            try {
+                quantumValue = Integer.parseInt(txtQuantum.getText());
+            } catch (Exception e) {
+                quantumValue = 100;
+            }
+        }
+
+        final int QUANTUM = quantumValue;
+
+        for (Proceso p : listaProcesos) {
+            actualizarEstadoProceso(p, EstadoProceso.NUEVO);
+            tiempoRestanteProceso.put(p, p.getDuracion());
+        }
+
+        actualizarTablaColas();
+        Platform.runLater(this::prepararGantt);
+
+        Thread simulacionThread = new Thread(() -> {
+            try {
+                tiempoActual = 0;
+
+                while (corriendo && (!procesosPendientes.isEmpty() || !procesosListos.isEmpty() || !procesosEnCores.isEmpty() || memoria.getSwapping().getCantidadProcesos() > 0)) {
+
+                    while (pausado && corriendo) {
+                        Thread.sleep(100);
+                    }
+
+                    if (!corriendo) break;
+
+                    // Procesar llegadas
+                    procesosPendientes.removeIf(proceso -> {
+                        if (proceso.getTiempoLlegada() <= tiempoActual) {
+                            if (memoria.asignarMemoria(proceso)) {
+                                procesosListos.add(proceso);
+                                actualizarEstadoProceso(proceso, EstadoProceso.LISTO);
+                                System.out.println("⏰ t=" + tiempoActual + ": Proceso " + proceso.getId() + " llegó y obtuvo memoria");
+                            } else {
+                                memoria.moverASwapping(proceso);
+                                actualizarEstadoProceso(proceso, EstadoProceso.ESPERANDO);
+                                System.out.println("⏰ t=" + tiempoActual + ": Proceso " + proceso.getId() + " llegó pero fue a SWAP");
+                            }
+                            actualizarVisualizacionMemoria();
+                            return true;
+                        }
+                        return false;
+                    });
+
+                    // Asignar procesos a cores libres (inicial)
+                    if ("SJF".equals(algoritmoSeleccionado)) {
+                        if (!procesosListos.isEmpty()) {
+                            procesosListos.sort((p1, p2) -> Integer.compare(
+                                    tiempoRestanteProceso.get(p1),
+                                    tiempoRestanteProceso.get(p2)
+                            ));
+
+                            for (int coreId = 0; coreId < numCores && !procesosListos.isEmpty(); coreId++) {
+                                if (!procesosEnCores.containsKey(coreId)) {
+                                    Proceso proceso = procesosListos.remove(0);
+                                    procesosEnCores.put(coreId, proceso);
+                                    actualizarEstadoProceso(proceso, EstadoProceso.EJECUTANDO);
+                                    proceso.marcarInicioEjecucion(tiempoActual);
+                                    System.out.println("🔧 t=" + tiempoActual + ": Core-" + coreId + " ejecuta Proceso " + proceso.getId() + " (SJF)");
+                                }
+                            }
+                        }
+
+                    } else if ("Round Robin".equals(algoritmoSeleccionado)) {
+                        for (int coreId = 0; coreId < numCores && !procesosListos.isEmpty(); coreId++) {
+                            if (!procesosEnCores.containsKey(coreId)) {
+                                Proceso proceso = procesosListos.remove(0);
+                                procesosEnCores.put(coreId, proceso);
+                                quantumRestantePorCore.put(coreId, QUANTUM);
+                                actualizarEstadoProceso(proceso, EstadoProceso.EJECUTANDO);
+                                proceso.marcarInicioEjecucion(tiempoActual);
+                                System.out.println("🔧 t=" + tiempoActual + ": Core-" + coreId + " ejecuta Proceso " + proceso.getId() + " (RR, Q=" + QUANTUM + ")");
+                            }
+                        }
+                    }
+
+                    // Ejecutar procesos en cores
+                    List<Integer> coresALiberar = new ArrayList<>();
+
+                    for (Map.Entry<Integer, Proceso> entry : procesosEnCores.entrySet()) {
+                        int coreId = entry.getKey();
+                        Proceso proceso = entry.getValue();
+
+                        final int finalTiempo = tiempoActual;
+                        final int finalCore = coreId;
+                        Platform.runLater(() -> {
+                            Color color = proceso.getColor() != null ? proceso.getColor() : Color.LIGHTBLUE;
+                            pintarCeldaCore(finalCore, finalTiempo, color);
+                        });
+
+                        int tiempoRestante = tiempoRestanteProceso.get(proceso) - 1;
+                        tiempoRestanteProceso.put(proceso, tiempoRestante);
+
+                        if ("Round Robin".equals(algoritmoSeleccionado)) {
+                            int quantumRestante = quantumRestantePorCore.get(coreId) - 1;
+                            quantumRestantePorCore.put(coreId, quantumRestante);
+
+                            if (tiempoRestante <= 0) {
+                                actualizarEstadoProceso(proceso, EstadoProceso.TERMINADO);
+                                proceso.marcarFinalizacion(tiempoActual + 1);
+                                coresALiberar.add(coreId);
+                                memoria.liberarMemoria(proceso);
+                                System.out.println("✅ t=" + tiempoActual + ": Proceso " + proceso.getId() + " terminado en Core-" + coreId + " (RR)");
+                                List<Proceso> procesosRecuperados = memoria.getSwapping().procesarCola(memoria);
+                                procesosListos.addAll(procesosRecuperados);
+                                for (Proceso p : procesosRecuperados) {
+                                    actualizarEstadoProceso(p, EstadoProceso.LISTO);
+                                }
+                                actualizarVisualizacionMemoria();
+
+                            } else if (quantumRestante <= 0) {
+                                coresALiberar.add(coreId);
+                                procesosListos.add(proceso);
+                                actualizarEstadoProceso(proceso, EstadoProceso.LISTO);
+                                System.out.println("🔄 t=" + tiempoActual + ": Proceso " + proceso.getId() + " interrumpido por quantum en Core-" + coreId + " (RR)");
+                            }
+
+                        } else {
+                            if (tiempoRestante <= 0) {
+                                actualizarEstadoProceso(proceso, EstadoProceso.TERMINADO);
+                                proceso.marcarFinalizacion(tiempoActual + 1);
+                                coresALiberar.add(coreId);
+                                memoria.liberarMemoria(proceso);
+                                System.out.println("✅ t=" + tiempoActual + ": Proceso " + proceso.getId() + " terminado en Core-" + coreId + " (SJF)");
+                                List<Proceso> procesosRecuperados = memoria.getSwapping().procesarCola(memoria);
+                                procesosListos.addAll(procesosRecuperados);
+                                for (Proceso p : procesosRecuperados) {
+                                    actualizarEstadoProceso(p, EstadoProceso.LISTO);
+                                }
+                                actualizarVisualizacionMemoria();
+                            }
+                        }
+                    }
+
+                    // ===== PRIMERO: Liberar todos los cores =====
+                    for (Integer coreId : coresALiberar) {
+                        procesosEnCores.remove(coreId);
+                        quantumRestantePorCore.remove(coreId);
+                    }
+
+                    // ===== SEGUNDO: Asignar procesos LISTO a cores libres =====
+                    if ("Round Robin".equals(algoritmoSeleccionado)) {
+                        for (int core = 0; core < numCores && !procesosListos.isEmpty(); core++) {
+                            if (!procesosEnCores.containsKey(core)) {
+                                Proceso proceso = procesosListos.remove(0);
+                                procesosEnCores.put(core, proceso);
+                                quantumRestantePorCore.put(core, QUANTUM);
+                                actualizarEstadoProceso(proceso, EstadoProceso.EJECUTANDO);
+                                proceso.marcarInicioEjecucion(tiempoActual);
+                                System.out.println("🔧 t=" + tiempoActual + ": Core-" + core + " ejecuta Proceso " + proceso.getId() + " (asignación tardía RR)");
+                            }
+                        }
+                    } else { // SJF
+                        if (!procesosListos.isEmpty()) {
+                            procesosListos.sort((p1, p2) -> Integer.compare(
+                                    tiempoRestanteProceso.get(p1),
+                                    tiempoRestanteProceso.get(p2)
+                            ));
+
+                            for (int core = 0; core < numCores && !procesosListos.isEmpty(); core++) {
+                                if (!procesosEnCores.containsKey(core)) {
+                                    Proceso proceso = procesosListos.remove(0);
+                                    procesosEnCores.put(core, proceso);
+                                    actualizarEstadoProceso(proceso, EstadoProceso.EJECUTANDO);
+                                    proceso.marcarInicioEjecucion(tiempoActual);
+                                    System.out.println("🔧 t=" + tiempoActual + ": Core-" + core + " ejecuta Proceso " + proceso.getId() + " (asignación tardía SJF)");
+                                }
+                            }
+                        }
+                    }
+
+                    actualizarTablaColas();
+                    tiempoActual++;
+                    Thread.sleep(STEP_DELAY_MS);
+                }
+
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            } finally {
+                Platform.runLater(() -> {
+                    corriendo = false;
+                    actualizarTablaColas();
+
+                    // Validación final
+                    boolean todosTerminados = true;
+                    for (Proceso p : listaProcesos) {
+                        if (p.getEstado() != EstadoProceso.TERMINADO) {
+                            todosTerminados = false;
+                            System.out.println("⚠️ Proceso " + p.getId() + " no terminó - Estado: " + p.getEstado());
+                        }
+                    }
+
+                    if (todosTerminados) {
+                        System.out.println("✅ TODOS los procesos terminaron correctamente");
+                    } else {
+                        System.out.println("❌ ERROR: No todos los procesos terminaron correctamente");
+                    }
+
+                    System.out.println("🏁 Simulación terminada en t=" + tiempoActual + " (" + algoritmoSeleccionado + ")");
+                    generarArchivoEstadisticas();
+                });
+            }
+        });
+
+        simulacionThread.setDaemon(true);
+        simulacionThread.start();
     }
-
     @FXML
     private void onStartClicked() {
+        if (cpu != null) {
+            System.out.println(cpu.getEstadisticas());
+        }
+        if (manejoProcesos != null) {
+            System.out.println(manejoProcesos.getEstadisticas());
+        }
+        if (memoria != null) {
+            memoria.imprimirEstado();
+        }
         if (corriendo) {
             return;
         }
-        try {
-            long v = Long.parseLong(txtTime.getText());
-            if (v > 0) {
-                STEP_DELAY_MS = v;
-            }
-        } catch (Exception ignored) {
+
+        if (procesos.isEmpty()) {
+            Alert alert = new Alert(Alert.AlertType.WARNING, "Agregue procesos antes de iniciar la simulación.");
+            alert.showAndWait();
+            return;
         }
+        tiempoInicioSimulacion = System.currentTimeMillis();
+        algoritmoUtilizado = comboAlgoritmo.getValue();
+        quantumUtilizado = "Round Robin".equals(algoritmoUtilizado) ?
+                Integer.parseInt(txtQuantum.getText().isEmpty() ? "100" : txtQuantum.getText()) : 0;
+
+
+
+        if ("Round Robin".equals(comboAlgoritmo.getValue())) {
+            try {
+                long v = Long.parseLong(txtTime.getText());
+                if (v > 0) {
+                    STEP_DELAY_MS = v;
+                }
+            } catch (Exception ignored) {
+                STEP_DELAY_MS = 500;
+            }
+        } else {
+            STEP_DELAY_MS = 200;
+        }
+
         corriendo = true;
         pausado = false;
-        simulacionThread = new Thread(this::ejecutarSimulacion);
-        simulacionThread.setDaemon(true);
-        simulacionThread.start();
-        System.out.println("Simulación iniciada");
+        tiempoActual = 0;
+
+
+        tiempoActual = 0;
+
+
+        Platform.runLater(this::prepararGantt);
+
+
+        ejecutarSimulacionParalela();
+
+        System.out.println("🚀 Simulación paralela iniciada con " + procesos.size() + " procesos");
     }
 
     @FXML
     private void onPauseClicked() {
         if (corriendo) {
             pausado = !pausado;
-            System.out.println(pausedLabel());
+            System.out.println(pausado ? "⏸️ Simulación pausada" : "▶️ Simulación reanudada");
         }
     }
 
@@ -332,37 +831,25 @@ public class HelloController implements Initializable {
     private void onStopClicked() {
         corriendo = false;
         pausado = false;
-        System.out.println("Simulación detenida");
-    }
 
-    @FXML
-    private void onRetryClicked() {
-        corriendo = false;
-        pausado = false;
-        if (simulacionThread != null) {
-            simulacionThread.interrupt();
+        if (cpu != null) {
+            cpu.detener();
         }
-        Platform.runLater(() -> prepararGantt(0));
-        System.out.println("Simulación reiniciada");
+
+        if (manejoProcesos != null) {
+            manejoProcesos.detenerEjecucion();
+        }
+
+        System.out.println("🛑 Simulación detenida");
     }
 
-    private String pausedLabel() {
-        return pausado ? "Simulación pausada" : "Simulación reanudada";
-    }
 
-    @FXML
-    private void onStatsClicked() {
-        System.out.println("Mostrando estadísticas");
-    }
+
+
 
     @FXML
     private void onAddClicked() {
-        if (procesos.size() >= 6) {
-            Alert alerta = new Alert(Alert.AlertType.WARNING, "Solo se pueden agregar hasta 6 procesos.");
-            alerta.showAndWait();
-            return;
-        }
-
+        
         Dialog<Proceso> dialog = new Dialog<>();
         dialog.setTitle("Nuevo Proceso");
 
@@ -406,9 +893,18 @@ public class HelloController implements Initializable {
 
         dialog.showAndWait().ifPresent(proceso -> {
             if (proceso != null) {
-                Color color = coloresDisponibles.remove(0);
-                proceso.setColor(color);
+                
+                if (!coloresDisponibles.isEmpty()) {
+                    Color color = coloresDisponibles.remove(0);
+                    proceso.setColor(color);
+                } else {
+                    
+                    java.util.Random rand = new java.util.Random();
+                    Color colorAleatorio = Color.color(rand.nextDouble(), rand.nextDouble(), rand.nextDouble());
+                    proceso.setColor(colorAleatorio);
+                }
                 procesos.add(proceso);
+                System.out.println("➕ Proceso agregado: " + proceso.getNombre() + " (Total: " + procesos.size() + " procesos)");
             }
         });
     }
@@ -423,4 +919,209 @@ public class HelloController implements Initializable {
             }
         }
     }
+
+    @FXML
+    private void onRetryClicked() {
+        onStopClicked();
+
+        if (scheduledExecutor != null) {
+            scheduledExecutor.shutdownNow();
+            scheduledExecutor = Executors.newScheduledThreadPool(2);
+        }
+
+        Platform.runLater(() -> {
+            prepararGantt();
+            limpiarTablaColas(); 
+
+            if (memoria != null) {
+                memoria.reiniciar();
+                actualizarVisualizacionMemoria();
+            }
+
+            if (procesos.isEmpty()) {
+                coloresDisponibles.clear();
+                coloresDisponibles.addAll(Arrays.asList(
+                        Color.RED, Color.BLUE, Color.GREEN, Color.ORANGE, Color.PURPLE
+                ));
+                crearProcesosPredefinidos();
+            }
+
+            
+            actualizarTablaColas(); 
+        });
+
+        System.out.println("🔄 Simulación reiniciada");
+    }
+
+    private void inicializarTablaColas() {
+        
+        datosTablaEstados = FXCollections.observableArrayList();
+
+        
+        colNuevo.setCellValueFactory(new PropertyValueFactory<>("nuevo"));
+        colListo.setCellValueFactory(new PropertyValueFactory<>("listo"));
+        colEspera.setCellValueFactory(new PropertyValueFactory<>("espera"));
+        colTerminado.setCellValueFactory(new PropertyValueFactory<>("terminado"));
+
+        
+        tablaColas.setItems(datosTablaEstados);
+
+        
+        actualizarTablaColas();
+
+        System.out.println("📋 Tabla de colas inicializada");
+    }
+    private void actualizarTablaColas() {
+        Platform.runLater(() -> {
+            
+            procesosNuevo.clear();
+            procesosListo.clear();
+            procesosEspera.clear();
+            procesosTerminado.clear();
+
+            
+            for (Proceso proceso : procesos) {
+                switch (proceso.getEstado()) {
+                    case NUEVO:
+                        procesosNuevo.add(proceso);
+                        break;
+                    case LISTO:
+                        procesosListo.add(proceso);
+                        break;
+                    case ESPERANDO:
+                        procesosEspera.add(proceso);
+                        break;
+                    case TERMINADO:
+                        procesosTerminado.add(proceso);
+                        break;
+                    case EJECUTANDO:
+                        
+                        procesosListo.add(proceso);
+                        break;
+                }
+            }
+
+            
+            datosTablaEstados.clear();
+
+            
+            int maxFilas = Math.max(Math.max(procesosNuevo.size(), procesosListo.size()),
+                    Math.max(procesosEspera.size(), procesosTerminado.size()));
+
+            
+            if (maxFilas == 0) {
+                maxFilas = 1;
+            }
+
+            
+            for (int i = 0; i < maxFilas; i++) {
+                String nuevo = i < procesosNuevo.size() ?
+                        formatearProceso(procesosNuevo.get(i)) : "";
+                String listo = i < procesosListo.size() ?
+                        formatearProceso(procesosListo.get(i)) : "";
+                String espera = i < procesosEspera.size() ?
+                        formatearProceso(procesosEspera.get(i)) : "";
+                String terminado = i < procesosTerminado.size() ?
+                        formatearProceso(procesosTerminado.get(i)) : "";
+
+                datosTablaEstados.add(new FilaEstadoProcesos(nuevo, listo, espera, terminado));
+            }
+        });
+    }
+
+    private String formatearProceso(Proceso proceso) {
+        if (proceso == null) {
+            return "";
+        }
+
+        StringBuilder sb = new StringBuilder();
+        sb.append(proceso.getNombre());
+        
+        switch (proceso.getEstado()) {
+            case NUEVO:
+                sb.append(" (").append(proceso.getTamanoMemoria()).append("MB)");
+                break;
+            case LISTO:
+                sb.append(" (").append(proceso.getTiempoRestante()).append("ms)");
+                break;
+            case EJECUTANDO:
+                sb.append(" [EXEC] (").append(proceso.getTiempoRestante()).append("ms)");
+                break;
+            case ESPERANDO:
+                sb.append(" (I/O)");
+                break;
+            case TERMINADO:
+                sb.append(" ✓");
+                break;
+        }
+
+        return sb.toString();
+    }
+
+    
+    private void actualizarEstadoProceso(Proceso proceso, EstadoProceso nuevoEstado) {
+        if (proceso != null && proceso.getEstado() != nuevoEstado) {
+            EstadoProceso estadoAnterior = proceso.getEstado();
+            proceso.setEstado(nuevoEstado);
+
+            System.out.println("🔄 Proceso " + proceso.getId() +
+                    " cambió de " + estadoAnterior + " a " + nuevoEstado);
+
+            
+            actualizarTablaColas();
+        }
+    }
+    private void limpiarTablaColas() {
+        Platform.runLater(() -> {
+            datosTablaEstados.clear();
+            procesosNuevo.clear();
+            procesosListo.clear();
+            procesosEspera.clear();
+            procesosTerminado.clear();
+
+            
+            datosTablaEstados.add(new FilaEstadoProcesos("", "", "", ""));
+        });
+    }
+    private void generarArchivoEstadisticas() {
+        Estadisticas.generarArchivoEstadisticas(
+                new ArrayList<>(procesos),
+                cpu,
+                memoria,
+                tiempoActual,
+                tiempoInicioSimulacion,
+                algoritmoUtilizado,
+                quantumUtilizado,
+                numCores
+        );
+    }
+
+    private void actualizarNumCores(String seleccion) {
+        switch (seleccion) {
+            case "1 Core":
+                numCores = 1;
+                break;
+            case "2 Cores":
+                numCores = 2;
+                break;
+            case "4 Cores":
+                numCores = 4;
+                break;
+            case "6 Cores":
+                numCores = 6;
+                break;
+            default:
+                numCores = 6;                break;
+        }
+
+        System.out.println("🔧 Configuración actualizada: " + numCores + " cores");        if (!corriendo) {
+            actualizarSistemaConNuevosCores();
+        }
+    }
+
+    private void actualizarSistemaConNuevosCores() {        cpu = new CPU(numCores);        generarGanttVacio();
+
+        System.out.println("✅ Sistema actualizado con " + numCores + " cores");
+    }
+
 }

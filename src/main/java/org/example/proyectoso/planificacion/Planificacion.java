@@ -3,29 +3,24 @@ import org.example.proyectoso.models.*;
 
 import java.util.List;
 
-/**
- * Clase abstracta base para algoritmos de planificación
- * Define la interfaz común para todos los planificadores
- */
+
 public abstract class Planificacion {
-    // Cola de procesos a ejecutar
+    
     protected List<Proceso> colaProcesos;
 
-    // Referencia a la CPU
+    
     protected CPU cpu;
 
-    // Control de estado
+    
     protected volatile boolean ejecutando;
     protected final Object lock = new Object();
 
-    // Estadísticas
+    
     protected long tiempoInicioEjecucion;
     protected long tiempoFinEjecucion;
     protected int procesosEjecutados;
 
-    /**
-     * Constructor base
-     */
+    
     public Planificacion() {
         this.ejecutando = false;
         this.procesosEjecutados = 0;
@@ -33,34 +28,23 @@ public abstract class Planificacion {
         this.tiempoFinEjecucion = 0;
     }
 
-    /**
-     * Establece la CPU a utilizar
-     */
+    
     public void setCpu(CPU cpu) {
         synchronized (lock) {
             this.cpu = cpu;
         }
     }
 
-    /**
-     * Método abstracto para ejecutar procesos
-     * Cada algoritmo debe implementar su propia lógica
-     */
+    
     public abstract void ejecutarProcesos(List<Proceso> procesos);
 
-    /**
-     * Método abstracto para obtener el nombre del algoritmo
-     */
+    
     public abstract String getNombreAlgoritmo();
 
-    /**
-     * Método abstracto para ordenar procesos según el algoritmo
-     */
+    
     protected abstract List<Proceso> ordenarProcesos(List<Proceso> procesos);
 
-    /**
-     * Inicia la ejecución de procesos
-     */
+    
     protected void iniciarEjecucion(List<Proceso> procesos) {
         synchronized (lock) {
             if (cpu == null) {
@@ -82,9 +66,7 @@ public abstract class Planificacion {
         }
     }
 
-    /**
-     * Finaliza la ejecución de procesos
-     */
+    
     protected void finalizarEjecucion() {
         synchronized (lock) {
             this.ejecutando = false;
@@ -98,9 +80,7 @@ public abstract class Planificacion {
         }
     }
 
-    /**
-     * Detiene la ejecución
-     */
+    
     public void detener() {
         synchronized (lock) {
             ejecutando = false;
@@ -113,9 +93,7 @@ public abstract class Planificacion {
         }
     }
 
-    /**
-     * Pausa la ejecución
-     */
+    
     public void pausar() {
         synchronized (lock) {
             ejecutando = false;
@@ -123,9 +101,7 @@ public abstract class Planificacion {
         }
     }
 
-    /**
-     * Reanuda la ejecución
-     */
+    
     public void reanudar() {
         synchronized (lock) {
             ejecutando = true;
@@ -133,9 +109,7 @@ public abstract class Planificacion {
         }
     }
 
-    /**
-     * Espera hasta que haya un core libre disponible
-     */
+    
     protected Core esperarCoreLibre() {
         while (ejecutando) {
             Core coreLibre = cpu.getCoresLibres().stream().findFirst().orElse(null);
@@ -145,7 +119,7 @@ public abstract class Planificacion {
             }
 
             try {
-                Thread.sleep(10); // Espera breve para evitar busy waiting
+                Thread.sleep(10); 
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 return null;
@@ -155,25 +129,10 @@ public abstract class Planificacion {
         return null;
     }
 
-    /**
-     * Verifica si todos los procesos han terminado
-     */
-    protected boolean todosProcesosTerminados(List<Proceso> procesos) {
-        return procesos.stream().allMatch(Proceso::haTerminado);
-    }
+    
 
-    /**
-     * Obtiene procesos que no han terminado
-     */
-    protected List<Proceso> obtenerProcesosActivos(List<Proceso> procesos) {
-        return procesos.stream()
-                .filter(p -> !p.haTerminado())
-                .collect(java.util.stream.Collectors.toList());
-    }
 
-    /**
-     * Obtiene estadísticas de la ejecución
-     */
+    
     public String getEstadisticas() {
         synchronized (lock) {
             StringBuilder stats = new StringBuilder();
@@ -197,9 +156,7 @@ public abstract class Planificacion {
         }
     }
 
-    /**
-     * Obtiene el estado actual del planificador
-     */
+    
     public String getEstadoActual() {
         synchronized (lock) {
             StringBuilder estado = new StringBuilder();
@@ -217,76 +174,10 @@ public abstract class Planificacion {
         }
     }
 
-    /**
-     * Calcula métricas de rendimiento para un conjunto de procesos
-     */
-    protected String calcularMetricas(List<Proceso> procesos) {
-        if (procesos == null || procesos.isEmpty()) {
-            return "No hay procesos para calcular métricas";
-        }
+    
 
-        List<Proceso> procesosTerminados = procesos.stream()
-                .filter(Proceso::haTerminado)
-                .collect(java.util.stream.Collectors.toList());
+    
 
-        if (procesosTerminados.isEmpty()) {
-            return "Ningún proceso ha terminado aún";
-        }
-
-        double promedioTiempoEspera = procesosTerminados.stream()
-                .mapToInt(Proceso::getTiempoEspera)
-                .average()
-                .orElse(0.0);
-
-        double promedioTiempoRespuesta = procesosTerminados.stream()
-                .mapToInt(Proceso::getTiempoRespuesta)
-                .average()
-                .orElse(0.0);
-
-        double promedioTiempoRetorno = procesosTerminados.stream()
-                .mapToInt(Proceso::getTiempoRetorno)
-                .average()
-                .orElse(0.0);
-
-        StringBuilder metricas = new StringBuilder();
-        metricas.append("=== MÉTRICAS DE RENDIMIENTO ===\n");
-        metricas.append("Procesos analizados: ").append(procesosTerminados.size()).append("\n");
-        metricas.append("Tiempo promedio de espera: ").append(String.format("%.2f", promedioTiempoEspera)).append("ms\n");
-        metricas.append("Tiempo promedio de respuesta: ").append(String.format("%.2f", promedioTiempoRespuesta)).append("ms\n");
-        metricas.append("Tiempo promedio de retorno: ").append(String.format("%.2f", promedioTiempoRetorno)).append("ms\n");
-
-        return metricas.toString();
-    }
-
-    // Getters básicos
-    public boolean isEjecutando() {
-        synchronized (lock) {
-            return ejecutando;
-        }
-    }
-
-    public CPU getCpu() {
-        synchronized (lock) {
-            return cpu;
-        }
-    }
-
-    public int getProcesosEjecutados() {
-        synchronized (lock) {
-            return procesosEjecutados;
-        }
-    }
-
-    public long getTiempoEjecucion() {
-        synchronized (lock) {
-            if (tiempoFinEjecucion > tiempoInicioEjecucion) {
-                return tiempoFinEjecucion - tiempoInicioEjecucion;
-            } else if (ejecutando && tiempoInicioEjecucion > 0) {
-                return System.currentTimeMillis() - tiempoInicioEjecucion;
-            }
-            return 0;
-        }
-    }
 
     @Override
     public String toString() {
