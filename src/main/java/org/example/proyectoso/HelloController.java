@@ -600,9 +600,30 @@ public class HelloController implements Initializable {
                         return false;
                     });
 
+                    // Procesar procesos en swapping al inicio de cada iteración
+                    List<Proceso> procesosRecuperadosInicio = memoria.getSwapping().procesarCola(memoria);
+                    for (Proceso p : procesosRecuperadosInicio) {
+                        actualizarEstadoProceso(p, EstadoProceso.LISTO);
+                        // Asegurar que el proceso tiene su tiempo restante inicializado
+                        if (!tiempoRestanteProceso.containsKey(p)) {
+                            tiempoRestanteProceso.put(p, p.getDuracion());
+                        }
+                    }
+                    // AGREGAR PROCESOS DE SWAPPING A LA LISTA DE LISTOS
+                    procesosListos.addAll(procesosRecuperadosInicio);
+                    if (!procesosRecuperadosInicio.isEmpty()) {
+                        actualizarVisualizacionMemoria();
+                    }
+
                     // Asignar procesos a cores libres (inicial)
                     if ("SJF".equals(algoritmoSeleccionado)) {
                         if (!procesosListos.isEmpty()) {
+                            System.out.println("🔍 t=" + tiempoActual + ": Hay " + procesosListos.size() + " procesos listos");
+                            for (Proceso p : procesosListos) {
+                                System.out.println("   - Proceso " + p.getId() + " tiempo restante: " + tiempoRestanteProceso.get(p));
+                            }
+                            System.out.println("🔍 t=" + tiempoActual + ": Cores ocupados: " + procesosEnCores.size() + "/" + numCores);
+
                             procesosListos.sort((p1, p2) -> Integer.compare(
                                     tiempoRestanteProceso.get(p1),
                                     tiempoRestanteProceso.get(p2)
@@ -680,12 +701,32 @@ public class HelloController implements Initializable {
                                 coresALiberar.add(coreId);
                                 memoria.liberarMemoria(proceso);
                                 System.out.println("✅ t=" + tiempoActual + ": Proceso " + proceso.getId() + " terminado en Core-" + coreId + " (SJF)");
+
+                                // 🚨 AQUÍ ES DONDE SALE EL PROCESO DEL SWAPPING - FORZAR ASIGNACIÓN INMEDIATA
                                 List<Proceso> procesosRecuperados = memoria.getSwapping().procesarCola(memoria);
-                                procesosListos.addAll(procesosRecuperados);
-                                for (Proceso p : procesosRecuperados) {
-                                    actualizarEstadoProceso(p, EstadoProceso.LISTO);
+                                if (!procesosRecuperados.isEmpty()) {
+                                    System.out.println("🚨 t=" + tiempoActual + ": ¡PROCESO SALIÓ DEL SWAPPING AQUÍ! Procesando " + procesosRecuperados.size() + " proceso(s)");
+
+                                    for (Proceso p : procesosRecuperados) {
+                                        actualizarEstadoProceso(p, EstadoProceso.LISTO);
+                                        // Asegurar que el proceso tiene su tiempo restante inicializado
+                                        if (!tiempoRestanteProceso.containsKey(p)) {
+                                            tiempoRestanteProceso.put(p, p.getDuracion());
+                                            System.out.println("🔧 t=" + tiempoActual + ": Inicializado tiempo restante para Proceso " + p.getId() + " (" + p.getDuracion() + "ms)");
+                                        }
+                                        System.out.println("🔄 t=" + tiempoActual + ": Proceso " + p.getId() + " salió de SWAP y está LISTO (tiempo restante: " + tiempoRestanteProceso.get(p) + "ms)");
+                                    }
+
+                                    // AGREGAR A LA LISTA DE LISTOS
+                                    procesosListos.addAll(procesosRecuperados);
+                                    System.out.println("➕ t=" + tiempoActual + ": " + procesosRecuperados.size() + " proceso(s) agregados a la lista de listos");
+                                    System.out.println("📊 t=" + tiempoActual + ": TAMAÑO ACTUAL LISTA LISTOS: " + procesosListos.size());
+                                    System.out.println("📊 t=" + tiempoActual + ": CONTENIDO LISTA LISTOS:");
+                                    for (int i = 0; i < procesosListos.size(); i++) {
+                                        Proceso p = procesosListos.get(i);
+                                        System.out.println("   [" + i + "] Proceso " + p.getId() + " - Estado: " + p.getEstado() + " - Tiempo restante: " + tiempoRestanteProceso.get(p));
+                                    }
                                 }
-                                actualizarVisualizacionMemoria();
                             }
                         }
                     }
@@ -696,33 +737,42 @@ public class HelloController implements Initializable {
                         quantumRestantePorCore.remove(coreId);
                     }
 
-                    // ===== SEGUNDO: Asignar procesos LISTO a cores libres =====
-                    if ("Round Robin".equals(algoritmoSeleccionado)) {
-                        for (int core = 0; core < numCores && !procesosListos.isEmpty(); core++) {
-                            if (!procesosEnCores.containsKey(core)) {
-                                Proceso proceso = procesosListos.remove(0);
-                                procesosEnCores.put(core, proceso);
-                                quantumRestantePorCore.put(core, QUANTUM);
-                                actualizarEstadoProceso(proceso, EstadoProceso.EJECUTANDO);
-                                proceso.marcarInicioEjecucion(tiempoActual);
-                                System.out.println("🔧 t=" + tiempoActual + ": Core-" + core + " ejecuta Proceso " + proceso.getId() + " (asignación tardía RR)");
-                            }
+                    // ===== PROCESAR SWAPPING DESPUÉS DE LIBERAR CORES =====
+                    List<Proceso> procesosRecuperadosTarde = memoria.getSwapping().procesarCola(memoria);
+                    for (Proceso p : procesosRecuperadosTarde) {
+                        actualizarEstadoProceso(p, EstadoProceso.LISTO);
+                        // Asegurar que el proceso tiene su tiempo restante inicializado
+                        if (!tiempoRestanteProceso.containsKey(p)) {
+                            tiempoRestanteProceso.put(p, p.getDuracion());
+                            System.out.println("🔧 t=" + tiempoActual + ": Inicializado tiempo restante para Proceso " + p.getId() + " (" + p.getDuracion() + "ms)");
                         }
-                    } else { // SJF
-                        if (!procesosListos.isEmpty()) {
+                        System.out.println("🔄 t=" + tiempoActual + ": Proceso " + p.getId() + " salió de SWAP TARDÍO y está LISTO (tiempo restante: " + tiempoRestanteProceso.get(p) + "ms)");
+                    }
+                    // AGREGAR PROCESOS DE SWAPPING TARDÍO A LA LISTA DE LISTOS
+                    procesosListos.addAll(procesosRecuperadosTarde);
+                    if (!procesosRecuperadosTarde.isEmpty()) {
+                        actualizarVisualizacionMemoria();
+                        System.out.println("➕ t=" + tiempoActual + ": " + procesosRecuperadosTarde.size() + " proceso(s) TARDÍOS agregados a la lista de listos");
+
+                        // 🆘 SOLUCIÓN DIRECTA: FORZAR ASIGNACIÓN INMEDIATA
+                        System.out.println("🆘 t=" + tiempoActual + ": FORZANDO ASIGNACIÓN INMEDIATA de procesos del swapping");
+                        if ("SJF".equals(algoritmoSeleccionado)) {
                             procesosListos.sort((p1, p2) -> Integer.compare(
                                     tiempoRestanteProceso.get(p1),
                                     tiempoRestanteProceso.get(p2)
                             ));
+                        }
 
-                            for (int core = 0; core < numCores && !procesosListos.isEmpty(); core++) {
-                                if (!procesosEnCores.containsKey(core)) {
-                                    Proceso proceso = procesosListos.remove(0);
-                                    procesosEnCores.put(core, proceso);
-                                    actualizarEstadoProceso(proceso, EstadoProceso.EJECUTANDO);
-                                    proceso.marcarInicioEjecucion(tiempoActual);
-                                    System.out.println("🔧 t=" + tiempoActual + ": Core-" + core + " ejecuta Proceso " + proceso.getId() + " (asignación tardía SJF)");
+                        for (int core = 0; core < numCores && !procesosListos.isEmpty(); core++) {
+                            if (!procesosEnCores.containsKey(core)) {
+                                Proceso proceso = procesosListos.remove(0);
+                                procesosEnCores.put(core, proceso);
+                                if ("Round Robin".equals(algoritmoSeleccionado)) {
+                                    quantumRestantePorCore.put(core, QUANTUM);
                                 }
+                                actualizarEstadoProceso(proceso, EstadoProceso.EJECUTANDO);
+                                proceso.marcarInicioEjecucion(tiempoActual);
+                                System.out.println("🚨 t=" + tiempoActual + ": FORZADO - Core-" + core + " ejecuta Proceso " + proceso.getId() + " (" + algoritmoSeleccionado + ")");
                             }
                         }
                     }
