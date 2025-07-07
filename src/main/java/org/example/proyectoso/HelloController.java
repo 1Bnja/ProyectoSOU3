@@ -704,7 +704,16 @@ public class HelloController implements Initializable {
                                 actualizarEstadoProceso(proceso, EstadoProceso.TERMINADO);
                                 proceso.marcarFinalizacion(tiempoActual + 1);
                                 coresALiberar.add(coreId);
-                                memoria.liberarMemoria(proceso);
+                                List<Proceso> liberados = memoria.liberarMemoria(proceso);
+                                for (Proceso p : liberados) {
+                                    if (!tiempoRestanteProceso.containsKey(p)) {
+                                        tiempoRestanteProceso.put(p, p.getDuracion());
+                                    }
+                                    procesosListos.add(p);
+                                    actualizarEstadoProceso(p, EstadoProceso.LISTO);
+                                    System.out.println("🆘 t=" + tiempoActual + ": Proceso " + p.getId() +
+                                            " salió del SWAP tras liberar memoria y agregado a lista de listos");
+                                }
                                 System.out.println("✅ t=" + tiempoActual + ": Proceso " + proceso.getId() + " terminado en Core-" + coreId + " (RR)");
                                 actualizarVisualizacionMemoria();
                             } else if (quantumRestante <= 0) {
@@ -721,7 +730,16 @@ public class HelloController implements Initializable {
                                 actualizarEstadoProceso(proceso, EstadoProceso.TERMINADO);
                                 proceso.marcarFinalizacion(tiempoActual + 1);
                                 coresALiberar.add(coreId);
-                                memoria.liberarMemoria(proceso);
+                                List<Proceso> liberados = memoria.liberarMemoria(proceso);
+                                for (Proceso p : liberados) {
+                                    if (!tiempoRestanteProceso.containsKey(p)) {
+                                        tiempoRestanteProceso.put(p, p.getDuracion());
+                                    }
+                                    procesosListos.add(p);
+                                    actualizarEstadoProceso(p, EstadoProceso.LISTO);
+                                    System.out.println("🆘 t=" + tiempoActual + ": Proceso " + p.getId() +
+                                            " salió del SWAP tras liberar memoria y agregado a lista de listos");
+                                }
                                 System.out.println("✅ t=" + tiempoActual + ": Proceso " + proceso.getId() + " terminado en Core-" + coreId + " (SJF)");
                                 actualizarVisualizacionMemoria();
                             }
