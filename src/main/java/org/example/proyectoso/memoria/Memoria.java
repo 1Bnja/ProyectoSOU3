@@ -80,8 +80,9 @@ public class Memoria {
         }
     }
 
-    public boolean liberarMemoria(Proceso proceso) {
+    public List<Proceso> liberarMemoria(Proceso proceso) {
         synchronized (lock) {
+            List<Proceso> procesosLiberados = new ArrayList<>();
             
             for (BloqueMemoria bloque : bloques) {
                 if (bloque.isOcupado() &&
@@ -99,14 +100,14 @@ public class Memoria {
                     calcularFragmentacion();
 
                     
-                    procesarSwapping();
+                    procesosLiberados.addAll(procesarSwapping());
 
-                    return true;
+                    return procesosLiberados;
                 }
             }
 
             System.out.println("⚠️ No se encontró memoria para liberar del Proceso " + proceso.getId());
-            return false;
+            return procesosLiberados;
         }
     }
 
@@ -168,13 +169,15 @@ public class Memoria {
     }
 
 
-    private void procesarSwapping() {
+    private List<Proceso> procesarSwapping() {
         List<Proceso> procesosLiberados = swapping.procesarCola(this);
 
         if (!procesosLiberados.isEmpty()) {
             System.out.println("🔄 " + procesosLiberados.size() +
                     " proceso(s) salieron del swapping");
         }
+
+        return procesosLiberados;
     }
 
 
