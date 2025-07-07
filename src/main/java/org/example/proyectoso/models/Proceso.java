@@ -7,8 +7,9 @@ public class Proceso {
     private static int contadorId = 1;
     private final int id;
     private final String nombre;
+    /** Numero de procesos que componen la aplicacion que representa este objeto */
+    private final int numeroProcesos;
 
-    
     private final int duracion;
     private final int tamanoMemoria;
     private final int tiempoLlegada;
@@ -34,9 +35,10 @@ public class Proceso {
     
     private Color color;
 
-    public Proceso(String nombre, int duracion, int tamanoMemoria, int tiempoLlegada) {
+    public Proceso(String nombre, int numeroProcesos, int duracion, int tamanoMemoria, int tiempoLlegada) {
         this.id = contadorId++;
         this.nombre = nombre;
+        this.numeroProcesos = numeroProcesos;
         this.duracion = duracion;
         this.tamanoMemoria = tamanoMemoria;
         this.tiempoLlegada = tiempoLlegada;
@@ -58,8 +60,8 @@ public class Proceso {
         this.tiempoFinalizacionReal = -1;
     }
 
-    public Proceso(String nombre, int duracion, int tamanoMemoria) {
-        this(nombre, duracion, tamanoMemoria, 0);
+    public Proceso(String nombre, int numeroProcesos, int duracion, int tamanoMemoria) {
+        this(nombre, numeroProcesos, duracion, tamanoMemoria, 0);
     }
 
     
@@ -173,6 +175,10 @@ public class Proceso {
 
     public String getNombre() {
         return nombre;
+    }
+
+    public int getNumeroProcesos() {
+        return numeroProcesos;
     }
 
     public int getDuracion() {
