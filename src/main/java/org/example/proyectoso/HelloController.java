@@ -274,6 +274,8 @@ public class HelloController implements Initializable {
                 break;
         }
 
+        planificador.setCpu(cpu);
+        planificador.setMemoria(memoria);
         manejoProcesos.setPlanificador(planificador);
     }
 

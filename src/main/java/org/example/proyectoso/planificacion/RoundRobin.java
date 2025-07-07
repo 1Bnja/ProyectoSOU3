@@ -139,6 +139,9 @@ public class RoundRobin extends Planificacion {
             if (terminado) {
                 proceso.setEstado(EstadoProceso.TERMINADO);
                 System.out.println("✅ Proceso " + proceso.getId() + " completado");
+                if (memoria != null) {
+                    memoria.liberarMemoria(proceso);
+                }
             } else {
                 proceso.setEstado(EstadoProceso.LISTO);
                 System.out.println("⏸️ Proceso " + proceso.getId() + " suspendido (quantum agotado)");
