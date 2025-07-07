@@ -1,5 +1,6 @@
 package org.example.proyectoso.planificacion;
 import org.example.proyectoso.models.*;
+import org.example.proyectoso.memoria.Memoria;
 
 import java.util.List;
 
@@ -10,6 +11,8 @@ public abstract class Planificacion {
 
     
     protected CPU cpu;
+
+    protected Memoria memoria;
 
     
     protected volatile boolean ejecutando;
@@ -32,6 +35,12 @@ public abstract class Planificacion {
     public void setCpu(CPU cpu) {
         synchronized (lock) {
             this.cpu = cpu;
+        }
+    }
+
+    public void setMemoria(Memoria memoria) {
+        synchronized (lock) {
+            this.memoria = memoria;
         }
     }
 

@@ -188,6 +188,9 @@ public class SJF extends Planificacion {
             if (proceso.haTerminado()) {
                 proceso.setEstado(EstadoProceso.TERMINADO);
                 System.out.println("✅ Proceso " + proceso.getId() + " completado");
+                if (memoria != null) {
+                    memoria.liberarMemoria(proceso);
+                }
             }
 
         } finally {
@@ -235,6 +238,9 @@ public class SJF extends Planificacion {
             if (proceso.haTerminado()) {
                 proceso.setEstado(EstadoProceso.TERMINADO);
                 System.out.println("✅ Proceso " + proceso.getId() + " completado");
+                if (memoria != null) {
+                    memoria.liberarMemoria(proceso);
+                }
             } else {
                 proceso.setEstado(EstadoProceso.LISTO);
                 System.out.println("⏸️ Proceso " + proceso.getId() + " suspendido");
