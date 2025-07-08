@@ -144,7 +144,7 @@ public class HelloController implements Initializable {
 
         
         colProceso.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(data.getValue().getNombre()));
-        colLlegada.setCellValueFactory(data -> new javafx.beans.property.SimpleIntegerProperty(data.getValue().getTiempoLlegada()).asObject());
+        colLlegada.setCellValueFactory(data -> new javafx.beans.property.SimpleIntegerProperty(data.getValue().getNumeroProcesos()).asObject());
         colBurst.setCellValueFactory(data -> new javafx.beans.property.SimpleIntegerProperty(data.getValue().getDuracion()).asObject());
         colMemoria.setCellValueFactory(data -> new javafx.beans.property.SimpleIntegerProperty(data.getValue().getTamanoMemoria()).asObject());
 
@@ -209,6 +209,7 @@ public class HelloController implements Initializable {
         for (int i = 0; i < 5; i++) {
             Proceso proceso = new Proceso(
                     nombres[i],
+                    1,
                     cpuBursts[i],
                     tamañosMemoria[i],
                     tiemposLlegada[i]
@@ -921,7 +922,7 @@ public class HelloController implements Initializable {
     private void onAddClicked() {
         
         Dialog<Proceso> dialog = new Dialog<>();
-        dialog.setTitle("Nuevo Proceso");
+        dialog.setTitle("Nueva Aplicación");
 
         ButtonType addButton = new ButtonType("Agregar", ButtonBar.ButtonData.OK_DONE);
         dialog.getDialogPane().getButtonTypes().addAll(addButton, ButtonType.CANCEL);
@@ -931,17 +932,17 @@ public class HelloController implements Initializable {
         grid.setVgap(10);
 
         TextField nombreField = new TextField();
-        TextField llegadaField = new TextField();
-        TextField burstField = new TextField();
+        TextField procesosField = new TextField();
+        TextField ejecucionField = new TextField();
         TextField memoriaField = new TextField();
 
-        grid.add(new Label("Nombre:"), 0, 0);
+        grid.add(new Label("Nombre App:"), 0, 0);
         grid.add(nombreField, 1, 0);
-        grid.add(new Label("Llegada:"), 0, 1);
-        grid.add(llegadaField, 1, 1);
-        grid.add(new Label("Burst:"), 0, 2);
-        grid.add(burstField, 1, 2);
-        grid.add(new Label("Memoria:"), 0, 3);
+        grid.add(new Label("Procesos:"), 0, 1);
+        grid.add(procesosField, 1, 1);
+        grid.add(new Label("Tiempo Ejecución:"), 0, 2);
+        grid.add(ejecucionField, 1, 2);
+        grid.add(new Label("Memoria RAM:"), 0, 3);
         grid.add(memoriaField, 1, 3);
 
         dialog.getDialogPane().setContent(grid);
@@ -950,10 +951,10 @@ public class HelloController implements Initializable {
             if (dialogButton == addButton) {
                 try {
                     String nombre = nombreField.getText();
-                    int llegada = Integer.parseInt(llegadaField.getText());
-                    int burst = Integer.parseInt(burstField.getText());
+                    int numProcesos = Integer.parseInt(procesosField.getText());
+                    int ejecucion = Integer.parseInt(ejecucionField.getText());
                     int memoria = Integer.parseInt(memoriaField.getText());
-                    return new Proceso(nombre, burst, memoria, llegada);
+                    return new Proceso(nombre, numProcesos, ejecucion, memoria, 0);
                 } catch (NumberFormatException e) {
                     return null;
                 }
@@ -974,7 +975,7 @@ public class HelloController implements Initializable {
                     proceso.setColor(colorAleatorio);
                 }
                 procesos.add(proceso);
-                System.out.println("➕ Proceso agregado: " + proceso.getNombre() + " (Total: " + procesos.size() + " procesos)");
+                System.out.println("➕ Aplicación agregada: " + proceso.getNombre() + " (Total: " + procesos.size() + " aplicaciones)");
             }
         });
     }
